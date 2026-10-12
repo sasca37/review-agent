@@ -1,0 +1,24 @@
+diff --git a/ReportService.java b/ReportService.java
+index 9035aa8..ffc30a8 100644
+--- a/ReportService.java
++++ b/ReportService.java
+@@ -1,14 +1,15 @@
+ public class ReportService {
+     public String title(String name) {
+-        // 보고서 제목
++        // 월간 보고서 제목을 만든다
+         return "보고서 " + name;
+     }
+ 
+     public int sum(int item1, int item2) {
+-        return item1+item2;
++        return item1 + item2;
+     }
+ 
+-    public java.util.List<String> load(String user) {
+-        return repo.find(user);
++    public java.util.List<String> loadAll(String user) {
++        java.util.List<String> users = repo.find(user);
++        return users;
+     }
+ }

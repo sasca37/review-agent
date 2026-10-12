@@ -1,0 +1,8 @@
+문서 ID: CHK-MISS-002
+제목: 새로 참조한 모듈 파일이 변경분에 없음
+점검 유형: missing_file
+적용 상황: import, from import, include, new 로 새 모듈이나 클래스를 참조하는 줄이 추가됨
+점검 방법: 참조하는 모듈 파일이 이번 diff 에 신규 파일로 포함되어 있는지 본다. 신규 파일이 diff 목록에 없고 기존에 있던 파일이라는 증거도 없으면 확인 필요로 알린다.
+예시: 변경 줄: from pay.refund_rules import check_refund  diff 파일 목록에 pay/refund_rules.py 가 없음 / 판단: 새 파일이 결재 대상에서 빠졌을 수 있다.
+예외: 표준 라이브러리나 이미 배포된 외부 패키지는 대상이 아니다.
+출처: 샘플(가상) 팀 규칙. 사내 실제 규정이 아니며 교육 검증용

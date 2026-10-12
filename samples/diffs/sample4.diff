@@ -1,0 +1,29 @@
+diff --git a/FeeCalculator.java b/FeeCalculator.java
+index d846d69..08e9390 100644
+--- a/FeeCalculator.java
++++ b/FeeCalculator.java
+@@ -1,5 +1,13 @@
+ public class FeeCalculator {
+-    public int calc(int amount) {
+-        return amount >= 1000000 ? 1000 : 500;
++    public int calc(int amount, String channel) {
++        int totalFee = amount >= 1000000 ? 1000 : 500;
++        if ("MOBILE".equals(channel)) {
++            totalFee = totalFee / 2;
++        }
++        if (totalFee < 0) {
++            throw new IllegalStateException("수수료 계산에 실패했읍니다");
++        }
++        log.info("fee=" + totlaFee);
++        return totalFee;
+     }
+ }
+diff --git a/FeeMapper.java b/FeeMapper.java
+index 7b63ee5..df78ef8 100644
+--- a/FeeMapper.java
++++ b/FeeMapper.java
+@@ -1,3 +1,3 @@
+ public interface FeeMapper {
+-    int selectFee(int grade);
++    int selectFee(int grade, String channel);
+ }

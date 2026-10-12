@@ -1,0 +1,21 @@
+diff --git a/bank/transfer.py b/bank/transfer.py
+index 2d78f22..ead9e33 100644
+--- a/bank/transfer.py
++++ b/bank/transfer.py
+@@ -1,10 +1,12 @@
+ from bank.fee import calc_fee
++from bank.limits import check_daily_limit
+ 
+ 
+-def transfer(src, dst, amount):
+-    fee = calc_fee(amount)
+-    if src.balance < amount + fee:
++def transfer(src, dst, amount, channel="web"):
++    fee = calc_fee(amount, channel)
++    check_daily_limit(src, amount)
++    if src.balance < amount:
+         raise ValueError("잔액 부족")
+     src.balance -= amount + fee
+-    dst.balance += amount
++    dst.balance += amuont
+     return fee

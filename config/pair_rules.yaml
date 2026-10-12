@@ -1,0 +1,6 @@
+# 함께 변경되어야 하는 파일 쌍 규칙 (팀 규칙에 맞게 작성). 비어 있으면 적용 안 함.
+# 예)
+# rules:
+#   - if_changed: "**/*Mapper.java"
+#     expect: "{dir}/{stem}.xml"
+rules: []

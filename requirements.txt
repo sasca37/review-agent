@@ -1,0 +1,8 @@
+# 모두 docs/python-library.txt(폐쇄망 허용 목록)에 포함된 라이브러리
+flask
+unidiff
+openai
+rapidfuzz
+pyyaml
+pytest
+requests

@@ -1,0 +1,7 @@
+{
+  "diff_paths": [
+    "ReportService.java"
+  ],
+  "planted": [],
+  "note": "정상 변경. 지적이 나오면 모두 false positive (GEN-002 효과 확인)"
+}

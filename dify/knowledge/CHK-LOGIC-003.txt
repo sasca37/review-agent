@@ -1,0 +1,8 @@
+문서 ID: CHK-LOGIC-003
+제목: null 및 빈값 처리 누락
+점검 유형: logic
+적용 상황: 외부 입력, DB 조회 결과, 파라미터를 꺼내 바로 메서드를 호출하거나 계산하는 코드가 추가됨
+점검 방법: 조회 결과가 없을 수 있는 호출(조회 후 바로 get, 속성 접근)에서 null·None·빈 목록을 검사하는 줄이 있는지 본다. 검사 없이 바로 사용하면 지적한다.
+예시: 변경 줄: Account acc = repo.find(id);  acc.getBalance(); / 판단: find 가 없을 때 null 을 돌려주는 경우 NullPointerException 이 난다.
+예외: find 가 null 을 돌려주는지 diff 만으로 알 수 없으면 확인 필요로 분류한다.
+출처: 샘플(가상) 팀 규칙. 사내 실제 규정이 아니며 교육 검증용

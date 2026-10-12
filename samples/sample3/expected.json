@@ -1,0 +1,27 @@
+{
+  "diff_paths": [
+    "Settlement.java",
+    "grade.py"
+  ],
+  "planted": [
+    {
+      "id": "float-money",
+      "type": "logic",
+      "file": "Settlement.java",
+      "line": 11
+    },
+    {
+      "id": "string-equals",
+      "type": "logic",
+      "file": "Settlement.java",
+      "line": 16
+    },
+    {
+      "id": "missing-else",
+      "type": "logic",
+      "file": "grade.py",
+      "line": 11
+    }
+  ],
+  "note": "전부 LLM 필요. CHK-LOGIC-004/005/008 비교"
+}

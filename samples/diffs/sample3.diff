@@ -1,0 +1,37 @@
+diff --git a/Settlement.java b/Settlement.java
+index 250ff0c..31467ae 100644
+--- a/Settlement.java
++++ b/Settlement.java
+@@ -6,4 +6,16 @@ public class Settlement {
+         }
+         return sum;
+     }
++
++    public double commission(int amount) {
++        double rate = amount * 0.0035;
++        return rate;
++    }
++
++    public boolean isCancelled(String status) {
++        if (status == "C") {
++            return true;
++        }
++        return false;
++    }
+ }
+diff --git a/grade.py b/grade.py
+index cc7d404..365474c 100644
+--- a/grade.py
++++ b/grade.py
+@@ -1,2 +1,11 @@
+ def to_point(rank):
+     return 0
++
++
++def grade_label(score):
++    if score >= 90:
++        return "A"
++    elif score >= 80:
++        return "B"
++    elif score >= 70:
++        return "C"

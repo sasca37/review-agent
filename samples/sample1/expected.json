@@ -1,0 +1,10 @@
+{
+  "diff_paths": ["bank/transfer.py"],
+  "planted": [
+    {"id": "typo-amuont", "type": "typo", "file": "bank/transfer.py", "line": 11},
+    {"id": "missing-fee", "type": "missing_file", "file": "bank/fee.py"},
+    {"id": "missing-limits", "type": "missing_file", "file": "bank/limits.py"},
+    {"id": "logic-balance", "type": "logic", "file": "bank/transfer.py", "line": 8}
+  ],
+  "note": "logic-balance(수수료를 뺀 잔액 비교)는 LLM 연결 시에만 점검 가능"
+}

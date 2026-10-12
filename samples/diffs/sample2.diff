@@ -1,0 +1,33 @@
+diff --git a/LoanService.java b/LoanService.java
+index f947dc9..f792646 100644
+--- a/LoanService.java
++++ b/LoanService.java
+@@ -1,11 +1,27 @@
+ public class LoanService {
+     private final LoanRepository repo;
++    private final Sender sender;
+ 
+-    public LoanService(LoanRepository repo) {
++    public LoanService(LoanRepository repo, Sender sender) {
+         this.repo = repo;
++        this.sender = sender;
+     }
+ 
+     public int maxLoanAmount(int income) {
+         return income * 3;
+     }
++
++    // 신용등급이 5등급 이상이면 대출 불가
++    public boolean isEligible(String customerId) {
++        Customer c = repo.findCustomer(customerId);
++        int grade = c.getGrade();
++        return grade <= 5;
++    }
++
++    public void notifyApproval(String customerId) {
++        try {
++            sender.send(customerId, "approved");
++        } catch (Exception e) {
++        }
++    }
+ }

@@ -1,0 +1,587 @@
+app:
+  description: 형상 결재 전 diff 를 정리하고 로직 오류·오타·미반영 파일 후보를 근거와 함께 1차 크로스체크
+  icon: 🔍
+  icon_background: '#E0F2FE'
+  icon_type: emoji
+  mode: workflow
+  name: '[6조 - 정재욱] 소스코드 리뷰 에이전트'
+  use_icon_as_answer_icon: false
+dependencies:
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/jina:0.0.24@14b00ae4b130661a5af7b21558c79a3ad9240734cc599eaf495556a666ce6e5c
+    version: null
+- current_identifier: null
+  type: marketplace
+  value:
+    marketplace_plugin_unique_identifier: langgenius/tongyi:0.2.22@9cea96ffc7977f536c02999c80ff1283b1819aab9b6fa2fdf789d0c6c7d03715
+    version: null
+kind: app
+version: 0.7.0
+workflow:
+  conversation_variables: []
+  environment_variables: []
+  features:
+    file_upload:
+      allowed_file_extensions:
+      - .JPG
+      - .JPEG
+      - .PNG
+      - .GIF
+      - .WEBP
+      - .SVG
+      allowed_file_types:
+      - image
+      allowed_file_upload_methods:
+      - local_file
+      - remote_url
+      enabled: false
+      fileUploadConfig:
+        attachment_image_file_size_limit: 2
+        audio_file_size_limit: 50
+        batch_count_limit: 5
+        file_size_limit: 15
+        file_upload_limit: 50
+        image_file_batch_limit: 10
+        image_file_size_limit: 10
+        knowledge_file_size_limit: 50
+        single_chunk_attachment_limit: 10
+        skill_file_size_limit: 50
+        video_file_size_limit: 100
+        workflow_file_upload_limit: 10
+      image:
+        enabled: false
+        number_limits: 3
+        transfer_methods:
+        - local_file
+        - remote_url
+      number_limits: 3
+    opening_statement: ''
+    retriever_resource:
+      enabled: false
+    sensitive_word_avoidance:
+      enabled: false
+    speech_to_text:
+      enabled: false
+    suggested_questions: []
+    suggested_questions_after_answer:
+      enabled: false
+    text_to_speech:
+      enabled: false
+      language: ''
+      voice: ''
+  graph:
+    edges:
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: start
+        targetType: code
+      id: start-parse
+      source: start
+      sourceHandle: source
+      target: parse
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: knowledge-retrieval
+      id: parse-kb
+      source: parse
+      sourceHandle: source
+      target: kb
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: knowledge-retrieval
+        targetType: llm
+      id: kb-llm
+      source: kb
+      sourceHandle: source
+      target: llm
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: llm
+        targetType: code
+      id: llm-merge
+      source: llm
+      sourceHandle: source
+      target: merge
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    - data:
+        isInIteration: false
+        isInLoop: false
+        sourceType: code
+        targetType: end
+      id: merge-end
+      source: merge
+      sourceHandle: source
+      target: end
+      targetHandle: target
+      type: custom
+      zIndex: 0
+    nodes:
+    - data:
+        desc: 개발 반영 후 형상 등록 전, 결재 대상 diff 를 입력합니다.
+        selected: false
+        title: 변경분 입력
+        type: start
+        variables:
+        - label: 변경 diff (git diff 결과)
+          max_length: 200000
+          options: []
+          required: true
+          type: paragraph
+          variable: diff_text
+        - label: git status --porcelain 결과 (선택, 미반영 파일 점검용)
+          max_length: 20000
+          options: []
+          required: false
+          type: paragraph
+          variable: git_status
+      height: 179
+      id: start
+      position:
+        x: 0
+        y: 200
+      positionAbsolute:
+        x: 0
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        code: "import json\nimport re\n\nIDENT = re.compile(r\"[A-Za-z_][A-Za-z0-9_]{4,}\"\
+          )\nWORD = re.compile(r\"[A-Z]+(?![a-z])|[A-Z]?[a-z]+\")\nHUNK = re.compile(r\"\
+          ^@@ -(\\d+)(?:,(\\d+))? \\+(\\d+)(?:,(\\d+))? @@\")\nCOMMON_TYPOS = {\n\
+          \    \"recieve\": \"receive\", \"lenght\": \"length\", \"adress\": \"address\"\
+          , \"sucess\": \"success\",\n    \"occured\": \"occurred\", \"seperate\"\
+          : \"separate\", \"paramter\": \"parameter\",\n    \"retrun\": \"return\"\
+          , \"fucntion\": \"function\", \"udpate\": \"update\", \"tranfer\": \"transfer\"\
+          ,\n    \"acount\": \"account\", \"accout\": \"account\", \"balace\": \"\
+          balance\", \"ammount\": \"amount\",\n    \"amout\": \"amount\", \"expried\"\
+          : \"expired\", \"pasword\": \"password\", \"usre\": \"user\",\n    \"mesage\"\
+          : \"message\", \"reponse\": \"response\", \"reqeust\": \"request\", \"tyep\"\
+          : \"type\",\n}\nMAX_LLM_CHARS = 30000\n\n\ndef osa(a, b):\n    \"\"\"전치(철자\
+          \ 순서 바뀜)를 1회로 세는 편집 거리.\"\"\"\n    d = [[0] * (len(b) + 1) for _ in range(len(a)\
+          \ + 1)]\n    for i in range(len(a) + 1):\n        d[i][0] = i\n    for j\
+          \ in range(len(b) + 1):\n        d[0][j] = j\n    for i in range(1, len(a)\
+          \ + 1):\n        for j in range(1, len(b) + 1):\n            c = 0 if a[i\
+          \ - 1] == b[j - 1] else 1\n            d[i][j] = min(d[i - 1][j] + 1, d[i][j\
+          \ - 1] + 1, d[i - 1][j - 1] + c)\n            if i > 1 and j > 1 and a[i\
+          \ - 1] == b[j - 2] and a[i - 2] == b[j - 1]:\n                d[i][j] =\
+          \ min(d[i][j], d[i - 2][j - 2] + 1)\n    return d[len(a)][len(b)]\n\n\n\
+          def strip_prefix(p):\n    p = p.strip().split(\"\\t\")[0]\n    return p[2:]\
+          \ if p[:2] in (\"a/\", \"b/\") else p\n\n\ndef parse(diff_text):\n    files,\
+          \ cur = [], None\n    old_left = new_left = new_no = 0\n\n    def new_file(path=\"\
+          \"):\n        f = {\"path\": path, \"status\": \"modified\", \"added\":\
+          \ 0, \"removed\": 0,\n             \"added_lines\": [], \"other\": [], \"\
+          numbered\": [], \"raw\": [], \"seen_hunk\": False}\n        files.append(f)\n\
+          \        return f\n\n    for raw in diff_text.splitlines():\n        in_hunk\
+          \ = old_left > 0 or new_left > 0\n        if in_hunk and cur is not None\
+          \ and (raw == \"\" or raw[:1] in (\" \", \"-\", \"+\", \"\\\\\")):\n   \
+          \         cur[\"raw\"].append(raw)\n            sign, text = (raw[:1], raw[1:])\
+          \ if raw else (\" \", \"\")\n            if sign == \"+\":\n           \
+          \     cur[\"added\"] += 1\n                cur[\"added_lines\"].append((new_no,\
+          \ text))\n                cur[\"numbered\"].append(\"%4d + %s\" % (new_no,\
+          \ text))\n                new_no += 1\n                new_left -= 1\n \
+          \           elif sign == \"-\":\n                cur[\"removed\"] += 1\n\
+          \                cur[\"other\"].append(text)\n                cur[\"numbered\"\
+          ].append(\"     - %s\" % text)\n                old_left -= 1\n        \
+          \    elif sign == \" \":\n                cur[\"other\"].append(text)\n\
+          \                cur[\"numbered\"].append(\"%4d   %s\" % (new_no, text))\n\
+          \                new_no += 1\n                old_left -= 1\n          \
+          \      new_left -= 1\n            continue\n        old_left = new_left\
+          \ = 0\n        if raw.startswith(\"diff --git \"):\n            m = re.match(r\"\
+          diff --git a/(.*) b/(.*)\", raw)\n            cur = new_file(m.group(2)\
+          \ if m else raw[11:].strip())\n            cur[\"raw\"].append(raw)\n  \
+          \          continue\n        m = HUNK.match(raw)\n        if m and cur is\
+          \ not None:\n            cur[\"seen_hunk\"] = True\n            old_left\
+          \ = int(m.group(2)) if m.group(2) is not None else 1\n            new_left\
+          \ = int(m.group(4)) if m.group(4) is not None else 1\n            new_no\
+          \ = int(m.group(3))\n            cur[\"raw\"].append(raw)\n            cur[\"\
+          numbered\"].append(raw)\n            continue\n        if raw.startswith(\"\
+          --- \"):\n            if cur is None or cur[\"seen_hunk\"]:\n          \
+          \      cur = new_file()\n            cur[\"raw\"].append(raw)\n        \
+          \    if \"/dev/null\" in raw:\n                cur[\"status\"] = \"added\"\
+          \n            elif not cur[\"path\"]:\n                cur[\"path\"] = strip_prefix(raw[4:])\n\
+          \            continue\n        if cur is None:\n            continue\n \
+          \       cur[\"raw\"].append(raw)\n        if raw.startswith(\"+++ \"):\n\
+          \            if \"/dev/null\" in raw:\n                cur[\"status\"] =\
+          \ \"deleted\"\n            else:\n                cur[\"path\"] = strip_prefix(raw[4:])\n\
+          \        elif raw.startswith(\"new file mode\"):\n            cur[\"status\"\
+          ] = \"added\"\n        elif raw.startswith(\"deleted file mode\"):\n   \
+          \         cur[\"status\"] = \"deleted\"\n        elif raw.startswith(\"\
+          rename to \"):\n            cur[\"status\"] = \"renamed\"\n            cur[\"\
+          path\"] = raw[10:].strip()\n    return [f for f in files if f[\"path\"]]\n\
+          \n\ndef check_typos(files):\n    all_text = \"\\n\".join(\n        \"\\\
+          n\".join(t for _, t in f[\"added_lines\"]) + \"\\n\" + \"\\n\".join(f[\"\
+          other\"]) for f in files)\n    counts = {}\n    for i in IDENT.findall(all_text):\n\
+          \        counts[i] = counts.get(i, 0) + 1\n    out, seen = [], set()\n \
+          \   for f in files:\n        for lineno, text in f[\"added_lines\"]:\n \
+          \           for ident in sorted(set(IDENT.findall(text))):\n           \
+          \     if (f[\"path\"], lineno, ident) in seen:\n                    continue\n\
+          \                hit = None\n                for w in WORD.findall(ident):\n\
+          \                    if w.lower() in COMMON_TYPOS:\n                   \
+          \     hit = (\"'%s' 의 '%s' 는 '%s' 의 오타로 보입니다.\" % (ident, w, COMMON_TYPOS[w.lower()]),\
+          \ \"지적\")\n                        break\n                if hit is None\
+          \ and counts.get(ident) == 1:\n                    cand = near_match(ident,\
+          \ counts)\n                    if cand:\n                        hit = (\"\
+          '%s' 는 이 변경분에서 %d회 쓰인 '%s' 와 철자가 거의 같습니다. 오타인지 확인하세요.\"\n              \
+          \                 % (ident, counts[cand], cand), \"확인 필요\")\n          \
+          \      if hit:\n                    seen.add((f[\"path\"], lineno, ident))\n\
+          \                    out.append({\"type\": \"typo\", \"file\": f[\"path\"\
+          ], \"line\": lineno, \"evidence\": text.strip(),\n                     \
+          \           \"reason\": hit[0], \"status\": hit[1], \"source\": \"rule\"\
+          })\n    return out\n\n\ndef near_match(ident, counts):\n    low = ident.lower()\n\
+          \    for cand, n in counts.items():\n        if cand == ident or n < 2 or\
+          \ abs(len(cand) - len(ident)) > 1:\n            continue\n        cl = cand.lower()\n\
+          \        if cl == low or cl.startswith(low) or low.startswith(cl):\n   \
+          \         continue\n        d = osa(low, cl)\n        if d > 2 or float(d)\
+          \ / max(len(low), 1) > 0.25:\n            continue\n        diffs = [(a,\
+          \ b) for a, b in zip(low, cl) if a != b]\n        if diffs and all(a.isdigit()\
+          \ and b.isdigit() for a, b in diffs):\n            continue\n        return\
+          \ cand\n    return None\n\n\ndef check_git_status(files, git_status):\n\
+          \    in_diff = set(f[\"path\"] for f in files)\n    out = []\n    for line\
+          \ in (git_status or \"\").splitlines():\n        m = re.match(r\"^\\s*([MADRCU?!]{1,2})\\\
+          s+(.+)$\", line)\n        if not m:\n            continue\n        code,\
+          \ path = m.group(1), m.group(2).split(\" -> \")[-1].strip().strip('\"')\n\
+          \        if path in in_diff or code == \"!!\":\n            continue\n \
+          \       untracked = code == \"??\"\n        out.append({\"type\": \"missing_file\"\
+          , \"file\": path, \"line\": None, \"evidence\": \"git status: \" + line.strip(),\n\
+          \                    \"reason\": \"작업 트리에서 \" + (\"새로 만들어졌지만\" if untracked\
+          \ else \"변경됐지만\")\n                              + \" 이번 결재 대상 diff 에 포함되지\
+          \ 않았습니다.\",\n                    \"status\": \"확인 필요\" if untracked else\
+          \ \"지적\", \"source\": \"rule\"})\n    return out\n\n\ndef main(diff_text:\
+          \ str, git_status: str) -> dict:\n    files = parse(diff_text or \"\")\n\
+          \    if not files:\n        raise ValueError(\"diff 를 해석할 수 없습니다. 'git diff'\
+          \ 결과(unified diff)를 붙여넣었는지 확인하세요.\")\n    rule = check_typos(files) + check_git_status(files,\
+          \ git_status)\n\n    table = [\"| 파일 | 상태 | + | - |\", \"|---|---|---|---|\"\
+          ]\n    table += [\"| `%s` | %s | %d | %d |\" % (f[\"path\"], f[\"status\"\
+          ], f[\"added\"], f[\"removed\"]) for f in files]\n\n    parts = []\n   \
+          \ for f in files:\n        parts.append(\"### %s (%s)\\n%s\" % (f[\"path\"\
+          ], f[\"status\"], \"\\n\".join(f[\"numbered\"])))\n    llm_input = \"\\\
+          n\\n\".join(parts)\n    notice = \"\"\n    if len(llm_input) > MAX_LLM_CHARS:\n\
+          \        llm_input = llm_input[:MAX_LLM_CHARS]\n        notice = \"diff\
+          \ 가 길어 앞 %d자만 LLM 이 검토했습니다.\" % MAX_LLM_CHARS\n\n    snippets = []\n   \
+          \ for f in files:\n        snippets.append(f[\"path\"] + \"\\n\" + \"\\\
+          n\".join(t for _, t in f[\"added_lines\"][:40]))\n    kb_query = (\"로직 오류\
+          \ 오타 미반영 파일 점검\\n\" + \"\\n\".join(snippets))[:1500]\n\n    files_json =\
+          \ [{\"path\": f[\"path\"], \"status\": f[\"status\"], \"added\": f[\"added\"\
+          ], \"removed\": f[\"removed\"],\n                   \"text\": \"\\n\".join(f[\"\
+          raw\"])} for f in files]\n    return {\n        \"files_table\": \"\\n\"\
+          .join(table),\n        \"llm_input\": llm_input,\n        \"rule_findings_json\"\
+          : json.dumps(rule, ensure_ascii=False),\n        \"files_json\": json.dumps(files_json,\
+          \ ensure_ascii=False),\n        \"notice\": notice,\n        \"kb_query\"\
+          : kb_query,\n    }\n"
+        code_language: python3
+        desc: 변경 파일 목록을 만들고 오타·미반영 파일 후보를 규칙으로 찾습니다.
+        outputs:
+          files_json:
+            children: null
+            type: string
+          files_table:
+            children: null
+            type: string
+          kb_query:
+            children: null
+            type: string
+          llm_input:
+            children: null
+            type: string
+          notice:
+            children: null
+            type: string
+          rule_findings_json:
+            children: null
+            type: string
+        selected: false
+        title: diff list 정리·규칙 점검
+        type: code
+        variables:
+        - value_selector:
+          - start
+          - diff_text
+          value_type: string
+          variable: diff_text
+        - value_selector:
+          - start
+          - git_status
+          value_type: string
+          variable: git_status
+      height: 96
+      id: parse
+      position:
+        x: 340
+        y: 200
+      positionAbsolute:
+        x: 340
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        dataset_ids:
+        - ycPWUpwppU9m2VmTJt6sBdT9QBLLX+/Oe6APQZmDFtzxMOX0Hl10izmQnb3IrrRy
+        desc: 변경 내용과 비슷한 점검 기준·오류 사례를 찾습니다. 가져온 뒤 지식 데이터셋을 선택하세요.
+        multiple_retrieval_config:
+          reranking_enable: true
+          reranking_mode: reranking_model
+          reranking_model:
+            model: jina-reranker-v3
+            provider: langgenius/jina/jina
+          score_threshold: null
+          top_k: 4
+        query_attachment_selector: []
+        query_variable_selector:
+        - parse
+        - kb_query
+        retrieval_mode: multiple
+        selected: true
+        title: 점검 기준 지식 검색
+        type: knowledge-retrieval
+      height: 150
+      id: kb
+      position:
+        x: 680
+        y: 200
+      positionAbsolute:
+        x: 680
+        y: 200
+      selected: true
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        context:
+          enabled: true
+          variable_selector:
+          - kb
+          - result
+        desc: 로직 오류·오타·미반영 파일 후보를 근거와 함께 제안합니다. 모델은 임포트 후 선택하세요.
+        memory: null
+        model:
+          completion_params:
+            temperature: 0
+          mode: chat
+          name: qwen3.5-flash
+          provider: langgenius/tongyi/tongyi
+        prompt_template:
+        - id: sys
+          role: system
+          text: '당신은 형상 결재 전 소스 변경분을 1차 점검하는 코드 리뷰어입니다.
+
+            점검 대상은 세 가지뿐입니다: 로직 오류(logic), 오타(typo), 미반영 파일(missing_file).
+
+
+            규칙:
+
+            - diff 에 실제로 보이는 줄만 근거로 삼고, evidence 에는 해당 줄의 내용을 그대로 인용하세요 (줄번호·+/- 기호
+            제외).
+
+            - line 은 입력에 표시된 신규 파일 기준 줄번호입니다. 삭제된 줄이면 null 입니다.
+
+            - 근거가 불충분하거나 diff 밖의 정보가 필요하면 needs_check 를 true 로 하세요. 추측을 사실처럼 쓰지 마세요.
+
+            - 문제가 없으면 빈 배열 [] 을 반환하세요. 없는 문제를 만들지 마세요. 스타일·취향 지적은 금지입니다.
+
+            - 이미 규칙 기반 점검이 찾은 후보와 같은 내용은 다시 쓰지 마세요.
+
+            - 참고 지식은 점검 관점과 ''지적하지 말아야 할 경우''를 알려 줄 뿐입니다. 지식에 있다는 이유만으로 지적하지 말고, 지식의
+            예시 코드를 근거로 인용하지 마세요.
+
+            - 실제 사내 업무 규칙은 알 수 없으므로 업무 프로세스 적합성은 단정하지 말고 필요하면 needs_check 로 표시하세요.
+
+
+            출력은 JSON 배열만 (설명 문장 금지):
+
+            [{"type":"logic|typo|missing_file","file":"<파일 경로>","line":<숫자 또는 null>,"evidence":"<diff
+            의 해당 줄 원문>","reason":"<한국어 설명>","needs_check":<true|false>}]'
+        - id: usr
+          role: user
+          text: '변경분 (줄 앞 숫자는 신규 파일 기준 줄번호, ''+'' 추가, ''-'' 삭제):
+
+
+            {{#parse.llm_input#}}
+
+
+            이미 규칙 기반 점검이 찾은 후보 (중복 제외용):
+
+            {{#parse.rule_findings_json#}}
+
+
+            참고 지식 (샘플 팀 규칙. 무엇을 볼지 알려 주는 참고용이며, 지적의 근거는 반드시 위 변경분에서 인용):
+
+            {{#context#}}'
+        selected: false
+        title: 오류 후보 1차 크로스체크
+        type: llm
+        variables: []
+        vision:
+          enabled: false
+      height: 132
+      id: llm
+      position:
+        x: 1020
+        y: 200
+      positionAbsolute:
+        x: 1020
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        code: "import json\nimport re\n\nTYPES = {\"logic\": \"로직 오류\", \"typo\":\
+          \ \"오타\", \"missing_file\": \"미반영 파일\"}\n\n\ndef norm(s):\n    return re.sub(r\"\
+          \\s+\", \"\", s or \"\")\n\n\ndef parse_llm(text):\n    m = re.search(r\"\
+          \\[.*\\]\", text or \"\", re.S)\n    if not m:\n        return None\n  \
+          \  try:\n        data = json.loads(m.group(0))\n    except ValueError:\n\
+          \        return None\n    return [d for d in data if isinstance(d, dict)]\n\
+          \n\ndef cell(s):\n    return str(s).replace(\"|\", \"\\\\|\").replace(\"\
+          \\n\", \" \")\n\n\ndef main(llm_text: str, rule_findings_json: str, files_json:\
+          \ str, notice: str) -> dict:\n    files = json.loads(files_json)\n    by_path\
+          \ = dict((f[\"path\"], f) for f in files)\n    notes = [notice] if notice\
+          \ else []\n    findings = json.loads(rule_findings_json)\n\n    items =\
+          \ parse_llm(llm_text)\n    if items is None:\n        notes.append(\"LLM\
+          \ 응답을 해석하지 못해 로직 점검 결과가 포함되지 않았습니다. 다시 실행하세요.\")\n        items = []\n \
+          \   for it in items:\n        t = it.get(\"type\")\n        if t not in\
+          \ TYPES:\n            continue\n        path, evidence = str(it.get(\"file\"\
+          , \"\")), str(it.get(\"evidence\", \"\")).strip()\n        status = \"확인\
+          \ 필요\" if it.get(\"needs_check\") else \"지적\"\n        reason = str(it.get(\"\
+          reason\", \"\")).strip()\n        # 인용한 근거가 해당 파일 diff 에 실제로 있는지 확인, 없으면\
+          \ '확인 필요'\n        f = by_path.get(path)\n        if f is None or not evidence\
+          \ or norm(evidence) not in norm(f[\"text\"]):\n            status = \"확인\
+          \ 필요\"\n            reason += \" (인용한 근거가 diff 에서 확인되지 않아 '확인 필요'로 분류)\"\
+          \n        line = it.get(\"line\") if isinstance(it.get(\"line\"), int) else\
+          \ None\n        findings.append({\"type\": t, \"file\": path, \"line\":\
+          \ line, \"evidence\": evidence,\n                         \"reason\": reason,\
+          \ \"status\": status, \"source\": \"llm\"})\n\n    seen, uniq = set(), []\n\
+          \    for f in findings:\n        k = (f[\"type\"], f[\"file\"], f[\"line\"\
+          ], norm(f[\"evidence\"]))\n        if k not in seen:\n            seen.add(k)\n\
+          \            uniq.append(f)\n    uniq.sort(key=lambda f: (f[\"status\"]\
+          \ != \"지적\", f[\"file\"], f[\"line\"] or 0))\n\n    n_found = len([f for\
+          \ f in uniq if f[\"status\"] == \"지적\"])\n    lines = [\"## 사전 점검 결과\",\
+          \ \"\",\n             \"- 변경 파일 %d개 · 지적 %d건 · 확인 필요 %d건\" % (len(files),\
+          \ n_found, len(uniq) - n_found), \"\"]\n    lines += [\"### 지적 사항\", \"\"\
+          ]\n    if uniq:\n        lines += [\"| 구분 | 유형 | 위치 | 근거 | 설명 |\", \"|---|---|---|---|---|\"\
+          ]\n        for f in uniq:\n            loc = f[\"file\"] + (\":%d\" % f[\"\
+          line\"] if f[\"line\"] else \"\")\n            lines.append(\"| %s | %s\
+          \ | `%s` | `%s` | %s |\" % (\n                f[\"status\"], TYPES[f[\"\
+          type\"]], cell(loc), cell(f[\"evidence\"]), cell(f[\"reason\"])))\n    else:\n\
+          \        lines.append(\"점검한 범위에서 지적할 사항이 없습니다. (점검 범위 밖의 오류는 여전히 있을 수 있습니다)\"\
+          )\n    if notes:\n        lines += [\"\", \"### 안내\"] + [\"- \" + n for\
+          \ n in notes]\n    lines += [\"\", \"> AI 는 오류 후보를 제안할 뿐입니다. 수정 여부는 개발자가\
+          \ 정하고, 고친 뒤 다시 점검할 수 있습니다. \"\n              \"③ 동료 코드리뷰는 그대로 진행하세요.\"]\n\
+          \    return {\"report\": \"\\n\".join(lines), \"findings_json\": json.dumps(uniq,\
+          \ ensure_ascii=False)}\n"
+        code_language: python3
+        desc: 인용한 근거가 diff 에 없으면 '확인 필요'로 내리고 결과를 합칩니다.
+        outputs:
+          findings_json:
+            children: null
+            type: string
+          report:
+            children: null
+            type: string
+        selected: false
+        title: 근거 검증·결과 정리
+        type: code
+        variables:
+        - value_selector:
+          - llm
+          - text
+          value_type: string
+          variable: llm_text
+        - value_selector:
+          - parse
+          - rule_findings_json
+          value_type: string
+          variable: rule_findings_json
+        - value_selector:
+          - parse
+          - files_json
+          value_type: string
+          variable: files_json
+        - value_selector:
+          - parse
+          - notice
+          value_type: string
+          variable: notice
+      height: 96
+      id: merge
+      position:
+        x: 1360
+        y: 200
+      positionAbsolute:
+        x: 1360
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    - data:
+        desc: 수정 여부는 개발자가 정합니다. ③ 동료 코드리뷰는 유지됩니다.
+        outputs:
+        - value_selector:
+          - parse
+          - files_table
+          value_type: string
+          variable: files_table
+        - value_selector:
+          - merge
+          - report
+          value_type: string
+          variable: report
+        - value_selector:
+          - merge
+          - findings_json
+          value_type: string
+          variable: findings_json
+        selected: false
+        title: 점검 결과
+        type: end
+      height: 184
+      id: end
+      position:
+        x: 1700
+        y: 200
+      positionAbsolute:
+        x: 1700
+        y: 200
+      selected: false
+      sourcePosition: right
+      targetPosition: left
+      type: custom
+      width: 242
+      zIndex: 0
+    viewport:
+      x: 84.86570405129658
+      y: 154.91163705590577
+      zoom: 0.47286242241010545
+  rag_pipeline_variables: []

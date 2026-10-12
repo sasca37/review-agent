@@ -1,0 +1,5 @@
+<mapper namespace="FeeMapper">
+  <select id="selectFee" resultType="int">
+    SELECT fee FROM FEE_TB WHERE grade = #{grade}
+  </select>
+</mapper>

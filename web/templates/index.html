@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>소스코드 사전 리뷰</title>
+<style>
+  :root{
+    --bg:#0c0f1d; --side:#10142a; --panel:#141830; --panel2:#1a1f3b; --line:#272d4f; --text:#e7e9f6; --muted:#8e94b8;
+    --accent:#7c5cff; --accent2:#9b83ff; --ok:#3fb950; --warn:#e3a008; --bad:#f85149;
+    --add-bg:rgba(46,160,67,.22); --add-fg:#9be9a8; --del-bg:rgba(248,81,73,.22); --del-fg:#ffb3ad;
+    --hunk-bg:rgba(124,92,255,.14); --hunk-fg:#b9a8ff; --meta-fg:#7f87b5;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,"D2Coding","Noto Sans Mono CJK KR",monospace;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",sans-serif;font-size:14px;display:flex;min-height:100vh}
+  aside{width:220px;background:var(--side);border-right:1px solid var(--line);padding:20px 14px;flex:none;display:flex;flex-direction:column;gap:18px}
+  .brand{display:flex;gap:10px;align-items:center;padding:0 6px}
+  .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),#4f8cff);display:grid;place-items:center;font-weight:700}
+  .brand b{display:block;font-size:15px}.brand small{color:var(--muted);font-size:11px}
+  nav a{display:block;padding:10px 12px;border-radius:9px;color:var(--muted);text-decoration:none;font-weight:600;margin-bottom:4px}
+  nav a:hover{background:rgba(124,92,255,.1);color:var(--text)} nav a.on{background:rgba(124,92,255,.22);color:#fff}
+  .aside-note{margin-top:auto;border:1px solid var(--line);border-radius:12px;padding:12px;font-size:12px;color:var(--muted);line-height:1.6}
+  .aside-note b{color:var(--text)}
+  main{flex:1;min-width:0;padding:22px 28px 60px;max-width:1500px}
+  h1{font-size:22px;margin:0 0 4px} .sub{color:var(--muted);margin:0 0 20px}
+  .grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(320px,1fr);gap:20px;align-items:start}
+  @media(max-width:1100px){.grid{grid-template-columns:1fr} aside{display:none}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:18px}
+  .card+.card{margin-top:20px}
+  .step{display:flex;gap:12px;align-items:center;margin-bottom:14px}
+  .num{width:30px;height:30px;border-radius:50%;background:var(--accent);display:grid;place-items:center;font-weight:700;flex:none}
+  .step h2{font-size:16px;margin:0}.step p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+  .tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+  .tab{background:var(--panel2);border:1px solid var(--line);color:var(--muted);padding:9px 16px;border-radius:9px;cursor:pointer;font:inherit}
+  .tab.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .bar{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .bar .grow{flex:1;min-width:120px;color:var(--muted);font-family:var(--mono);font-size:12.5px}
+  .btn{background:var(--panel2);border:1px solid var(--line);color:var(--text);padding:8px 13px;border-radius:9px;cursor:pointer;font:inherit;font-size:13px}
+  .btn:hover{border-color:var(--accent2)} .btn:disabled{opacity:.5;cursor:default}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  select,input[type=text],input[type=password],textarea.plain{background:#0f1328;border:1px solid var(--line);color:var(--text);border-radius:9px;padding:9px 11px;font:inherit;width:100%}
+  select.small{width:auto;padding:7px 10px;font-size:13px}
+  input:focus,select:focus,textarea:focus{outline:2px solid rgba(124,92,255,.5);outline-offset:0}
+  label.f{display:block;color:var(--muted);font-size:12.5px;margin:12px 0 5px}
+  .row{display:flex;gap:10px}.row>*{flex:1;min-width:0}
+  /* ===== diff 에디터: textarea 위에 하이라이트 레이어를 겹친다 ===== */
+  .editor{display:flex;height:430px;background:#0a0d1a;border:1px solid var(--line);border-radius:12px;overflow:hidden;font-family:var(--mono);font-size:12.5px;line-height:20px}
+  .gutter{width:48px;flex:none;overflow:hidden;background:#0d1122;border-right:1px solid var(--line);color:#5b628a;text-align:right;user-select:none}
+  .gutter-in{padding:8px 10px 8px 0;will-change:transform}
+  .gutter-in div{height:20px}
+  .code{position:relative;flex:1;min-width:0}
+  .backdrop{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+  #hl{padding:8px 0;width:max-content;min-width:100%;will-change:transform}
+  .ln{height:20px;white-space:pre;padding:0 12px;tab-size:4;color:#c9cde6;border-left:3px solid transparent}
+  .ln.add{background:var(--add-bg);color:var(--add-fg)} .ln.del{background:var(--del-bg);color:var(--del-fg)}
+  .ln.hunk{background:var(--hunk-bg);color:var(--hunk-fg)} .ln.meta{color:var(--meta-fg)}
+  .ln.found{border-left-color:var(--bad);box-shadow:inset 0 0 0 1px rgba(248,81,73,.55)}
+  .ln.check{border-left-color:var(--warn);box-shadow:inset 0 0 0 1px rgba(227,160,8,.55)}
+  .ln.flash{animation:fl 1.2s}
+  @keyframes fl{0%,60%{outline:2px solid var(--accent2);outline-offset:-2px}100%{outline:2px solid transparent}}
+  #diff{position:absolute;inset:0;width:100%;height:100%;margin:0;border:0;resize:none;background:transparent;color:transparent;caret-color:#fff;
+    font:inherit;line-height:20px;padding:8px 12px;white-space:pre;overflow:auto;tab-size:4;outline:none}
+  #diff::selection{background:rgba(124,92,255,.45)}
+  #diff::placeholder{color:#555c85}
+  details.gs{margin-top:12px} details.gs summary{cursor:pointer;color:var(--muted);font-size:13px}
+  textarea.plain{font-family:var(--mono);font-size:12.5px;height:90px;margin-top:8px;resize:vertical}
+  .hint{color:var(--muted);font-size:12px;line-height:1.6;margin-top:6px}
+  .legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:8px;flex-wrap:wrap}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:5px}
+  /* ===== 설정 ===== */
+  .keywrap{position:relative}.keywrap button{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;color:var(--muted);cursor:pointer;padding:6px}
+  .status{display:flex;align-items:center;gap:8px;font-size:13px;margin-top:12px;min-height:22px}
+  .dot{width:9px;height:9px;border-radius:50%;background:#555c85;flex:none}.dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}.dot.warn{background:var(--warn)}
+  .seg{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .seg label{border:1px solid var(--line);background:var(--panel2);border-radius:10px;padding:10px 12px;cursor:pointer;font-size:13px}
+  .seg label b{display:block;margin-bottom:2px}.seg label span{color:var(--muted);font-size:12px}
+  .seg input{display:none}.seg label:has(input:checked){border-color:var(--accent);background:rgba(124,92,255,.18)}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{border:1px solid var(--line);background:var(--panel2);border-radius:20px;padding:6px 12px;font-size:12.5px}
+  .run{width:100%;padding:14px;font-size:15px;margin-top:6px}
+  .spin{display:inline-block;width:14px;height:14px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:sp .8s linear infinite;vertical-align:-2px;margin-right:8px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .err{background:rgba(248,81,73,.12);border:1px solid rgba(248,81,73,.45);color:#ffc1bd;padding:12px 14px;border-radius:10px;margin-top:12px;font-size:13px;line-height:1.6}
+  .note{background:rgba(227,160,8,.1);border:1px solid rgba(227,160,8,.4);color:#f1d48a;padding:10px 12px;border-radius:10px;margin-top:10px;font-size:13px}
+  /* ===== 결과 ===== */
+  #result{margin-top:20px}
+  .sum{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .pill{padding:6px 12px;border-radius:20px;font-size:13px;font-weight:600;border:1px solid}
+  .pill.f{color:#ffb3ad;border-color:rgba(248,81,73,.6);background:rgba(248,81,73,.12)}
+  .pill.c{color:#f1d48a;border-color:rgba(227,160,8,.6);background:rgba(227,160,8,.1)}
+  .pill.n{color:var(--muted);border-color:var(--line)}
+  table{width:100%;border-collapse:collapse;font-size:13px} th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:12px}
+  code,.mono{font-family:var(--mono);font-size:12.5px}
+  .finding{border:1px solid var(--line);border-radius:12px;padding:14px;margin-top:10px;background:var(--panel2)}
+  .finding.f{border-left:4px solid var(--bad)}.finding.c{border-left:4px solid var(--warn)}
+  .fh{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+  .tag{font-size:11.5px;font-weight:700;padding:2px 8px;border-radius:5px}.tag.f{background:var(--bad);color:#fff}.tag.c{background:var(--warn);color:#201800}
+  .tag.t{background:#2a3057;color:#c6cbf0}
+  a.loc{color:var(--accent2);cursor:pointer;text-decoration:underline;font-family:var(--mono);font-size:12.5px}
+  pre.ev{margin:8px 0;padding:9px 11px;background:#0a0d1a;border:1px solid var(--line);border-radius:8px;overflow:auto;font-family:var(--mono);font-size:12.5px;white-space:pre-wrap;word-break:break-all}
+  .reason{line-height:1.65}
+  .pill.o{color:#9ecbff;border-color:rgba(88,166,255,.6);background:rgba(88,166,255,.12)}
+  .finding.o{border-left:4px solid #58a6ff}
+  .tag.o{background:#1f4f8f;color:#dcecff}.tag.pr{background:transparent;border:1px solid #5b628a;color:#c6cbf0}.tag.pr.hi{border-color:var(--bad);color:#ffb3ad}.tag.pr.mid{border-color:var(--warn);color:#f1d48a}
+  .ln.opn{border-left-color:#58a6ff;box-shadow:inset 0 0 0 1px rgba(88,166,255,.5)}
+  .fbadge.o{background:rgba(88,166,255,.18);color:#9ecbff}
+  .mini.o{background:rgba(88,166,255,.16);color:#9ecbff}
+  .okbox{background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.4);color:#a5e6b0;padding:14px;border-radius:10px}
+  .tasksel{display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:14px;border-bottom:1px solid var(--line)}
+  .tasksel label{font-weight:600;white-space:nowrap}.tasksel select{max-width:280px}
+  .hist{list-style:none;margin:0;padding:0}
+  .hist li{display:flex;gap:10px;align-items:center;padding:10px 4px;border-bottom:1px solid var(--line);cursor:pointer;border-radius:8px}
+  .hist li:hover{background:var(--panel2)} .hist li:last-child{border-bottom:0}
+  .hist .main{flex:1;min-width:0}.hist .t{font-size:12px;color:var(--muted)}
+  .hist .fn{font-family:var(--mono);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hist .pills{display:flex;gap:5px;flex:none}.mini{font-size:11.5px;font-weight:700;padding:2px 7px;border-radius:12px}
+  .mini.f{background:rgba(248,81,73,.18);color:#ffb3ad}.mini.c{background:rgba(227,160,8,.16);color:#f1d48a}.mini.z{background:rgba(63,185,80,.15);color:#a5e6b0}
+  .x{background:none;border:0;color:var(--muted);cursor:pointer;padding:4px 6px;border-radius:6px;font-size:14px}.x:hover{color:var(--bad);background:rgba(248,81,73,.12)}
+  .commits{max-height:240px;overflow:auto;margin-top:10px;border:1px solid var(--line);border-radius:10px;padding:0 8px}
+  .commits:empty{display:none} .commits li.sel{background:rgba(124,92,255,.2)}
+  .commits .chk{width:16px;height:16px;border:1.5px solid #5b628a;border-radius:4px;flex:none;display:grid;place-items:center;font-size:11px;color:transparent}
+  .commits li.sel .chk{background:var(--accent);border-color:var(--accent);color:#fff}
+  .commits li{user-select:none}
+  .commits .sha{font-family:var(--mono);font-size:12px;color:var(--accent2);flex:none;width:62px}
+  .commits .msg{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  /* 변경 파일 목록 / 파일별 보기 */
+  .files{border:1px solid var(--line);border-radius:12px;margin-bottom:12px;background:#0f1328}
+  .files-h{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--line);font-weight:600;font-size:13px}
+  .files-h .bar-ind{width:3px;height:14px;background:var(--accent);border-radius:2px}
+  .files-h .sp{flex:1}.files-h .btn{padding:4px 10px;font-size:12px}
+  .flist{max-height:230px;overflow:auto;padding:4px 0}
+  .fdir{padding:6px 14px 0;color:#667097;font-size:12px;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .frow{display:flex;align-items:center;gap:8px;padding:5px 14px;cursor:pointer;border-left:3px solid transparent}
+  .frow:hover{background:var(--panel2)} .frow.on{background:rgba(124,92,255,.2);border-left-color:var(--accent)}
+  .fico{flex:none;width:18px;height:18px;border-radius:4px;display:grid;place-items:center;font-size:10.5px;font-weight:700;color:#fff;background:#5b6bd6}
+  .fico.A{background:#2ea043}.fico.D{background:#d1453b}.fico.R{background:#b9851a}
+  .fname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13.5px}
+  .fstat{flex:none;font-family:var(--mono);font-size:12.5px;display:flex;gap:8px}
+  .fstat .a{color:#3fb950}.fstat .d{color:#f85149}
+  .fbadge{flex:none;font-size:11px;font-weight:700;padding:1px 6px;border-radius:10px}
+  .fbadge.f{background:rgba(248,81,73,.2);color:#ffb3ad}.fbadge.c{background:rgba(227,160,8,.18);color:#f1d48a}
+  #fileView{flex-direction:column;overflow:auto;display:block;background:#0a0d1a}
+  #fileView .in{width:max-content;min-width:100%;padding:8px 0}
+  #fileView .fr{display:flex}
+  #fileView .no{position:sticky;left:0;z-index:1;flex:none;width:48px;padding-right:10px;text-align:right;background:#0d1122;border-right:1px solid var(--line);color:#5b628a;user-select:none;height:20px}
+  #fileView .fr .ln{flex:1}
+  .empty{color:var(--muted);font-size:13px;padding:6px 2px}
+  .foot{color:var(--muted);font-size:12px;margin-top:16px;line-height:1.7}
+</style>
+</head>
+<body>
+<aside>
+  <div class="brand"><div class="logo">R</div><div><b>Pre-Review</b><small>형상 결재 전 1차 점검</small></div></div>
+  <nav><a href="#review" data-view="review" class="on">새 코드 리뷰</a><a href="#settings" data-view="settings">설정</a></nav>
+  <div class="aside-note"><b>사람이 확인합니다</b><br>AI 는 오류 후보를 제안할 뿐입니다. 수정 여부는 개발자가 정하고 ③ 동료 코드리뷰는 그대로 진행됩니다.</div>
+</aside>
+
+<main>
+<div id="view-review">
+  <h1>새 코드 리뷰</h1>
+  <p class="sub">git diff 를 입력하고 Dify 에이전트를 연결해 형상 등록 전에 점검하세요.</p>
+
+  <div class="grid">
+    <!-- 1. 변경 코드 입력 -->
+    <section class="card">
+      <div class="tasksel"><label for="taskSel">업무</label>
+        <select id="taskSel"><option value="">업무를 선택하세요</option></select>
+        <span class="hint" style="margin:0">선택한 업무의 이전 요청 기록이 오른쪽에 표시됩니다.</span></div>
+      <div class="step"><div class="num">1</div><div><h2>변경 코드 입력</h2><p>리뷰할 변경 내용을 git diff 형식으로 입력하세요. + / - 줄은 자동으로 강조됩니다.</p></div></div>
+      <div class="tabs" id="tabs">
+        <button class="tab on" data-tab="direct" type="button">&lt;/&gt; Diff 직접 입력</button>
+        <button class="tab" data-tab="upload" type="button">파일 업로드</button>
+        <button class="tab" data-tab="repo" type="button">로컬 Git 저장소</button>
+        <button class="tab" data-tab="github" type="button">GitHub 커밋</button>
+      </div>
+
+      <div id="p-direct" class="bar">
+        <span class="grow" id="meta">입력한 diff: 0줄</span>
+        <select class="small" id="sampleSel" title="예제 불러오기"><option value="">예제 불러오기…</option></select>
+        <button class="btn" id="clearBtn" type="button">초기화</button>
+      </div>
+      <div id="p-upload" class="bar" hidden>
+        <input type="file" id="fileIn" accept=".diff,.patch,.txt" style="color:var(--muted)">
+        <span class="hint">.diff / .patch / .txt 파일을 고르거나 아래 입력창에 끌어다 놓으세요.</span>
+      </div>
+      <div id="p-repo" hidden>
+        <label class="f" style="margin-top:0">저장소 경로 (서버 PC 기준)</label>
+        <input type="text" id="repoPath" placeholder="/path/to/repo">
+        <div class="row">
+          <div><label class="f">base (비우면 HEAD~1)</label><input type="text" id="repoBase" placeholder="HEAD~1"></div>
+          <div><label class="f">head (비우면 HEAD)</label><input type="text" id="repoHead" placeholder="HEAD"></div>
+        </div>
+        <div class="bar" style="margin-top:10px"><button class="btn" id="repoBtn" type="button">diff 가져오기</button><span class="hint" id="repoMsg"></span></div>
+      </div>
+
+      <div id="p-github" hidden>
+        <div class="row">
+          <div><label class="f" style="margin-top:0">저장소 (owner/repo 또는 GitHub 주소)</label><input type="text" id="ghRepo" placeholder="pallets/flask"></div>
+          <div style="max-width:190px"><label class="f" style="margin-top:0">브랜치 (선택)</label><input type="text" id="ghBranch" placeholder="기본 브랜치"></div>
+        </div>
+        <div class="bar" style="margin-top:10px"><button class="btn" id="ghBtn" type="button">커밋 목록 불러오기</button><span class="hint" id="ghMsg">여러 커밋을 눌러 선택할 수 있습니다 (Shift+클릭: 범위 선택). 공개 저장소는 토큰 없이 쓸 수 있습니다.</span></div>
+        <ul class="hist commits" id="ghList"></ul>
+        <div class="bar" style="margin-top:8px"><button class="btn" id="ghMore" type="button" hidden>더 보기</button></div>
+        <div class="bar" id="ghSelBar" hidden style="margin-top:8px;padding:10px 12px;border:1px solid var(--accent);border-radius:10px;background:rgba(124,92,255,.1)">
+          <span class="grow" id="ghSelCount" style="font-family:inherit;color:var(--text)"></span>
+          <button class="btn primary" id="ghLoad" type="button">선택한 커밋 불러오기</button>
+          <button class="btn" id="ghClear" type="button">선택 해제</button>
+        </div>
+      </div>
+
+      <div class="files" id="filesBox" hidden>
+        <div class="files-h"><span class="bar-ind"></span><span id="filesTitle">변경 파일</span><span class="sp"></span>
+          <button class="btn" id="allBtn" type="button" hidden>← 전체 diff 보기</button></div>
+        <div class="flist" id="flist"></div>
+      </div>
+
+      <div class="editor" id="fileView" hidden></div>
+      <div class="editor" id="editor">
+        <div class="gutter" id="gutter"><div class="gutter-in" id="gin"></div></div>
+        <div class="code">
+          <div class="backdrop"><div id="hl"></div></div>
+          <textarea id="diff" wrap="off" spellcheck="false" autocomplete="off" autocapitalize="off"
+            placeholder="여기에 git diff 결과를 붙여넣으세요.&#10;예) 터미널에서  git diff | pbcopy"></textarea>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i style="background:var(--add-bg);border:1px solid var(--ok)"></i>추가(+)</span>
+        <span><i style="background:var(--del-bg);border:1px solid var(--bad)"></i>삭제(-)</span>
+        <span><i style="background:var(--hunk-bg);border:1px solid var(--accent)"></i>변경 위치(@@)</span>
+        <span id="flagLegend" hidden><i style="border:1px solid var(--bad)"></i>지적 <i style="border:1px solid var(--warn);margin-left:8px"></i>확인 필요 <i style="border:1px solid #58a6ff;margin-left:8px"></i>의견</span>
+      </div>
+      <details class="gs" id="gsBox">
+        <summary>git status --porcelain 결과 (선택 · 결재 대상에서 빠진 파일 점검용)</summary>
+        <textarea class="plain" id="gitStatus" spellcheck="false" placeholder=" M src/Foo.java&#10;?? src/Bar.java"></textarea>
+      </details>
+    </section>
+
+    <!-- 2,3. 설정 / 실행 -->
+    <div>
+      <section class="card">
+        <div class="step"><div class="num">2</div><div><h2>API 설정</h2><p>점검에 사용할 방식을 고르세요.</p></div></div>
+        <div class="seg" id="engineSeg">
+          <label><input type="radio" name="engine" value="dify" checked><b>Dify 워크플로</b><span>지식 검색 + LLM 점검</span></label>
+          <label><input type="radio" name="engine" value="local"><b>내장 규칙 점검</b><span>LLM 없이 오타·미반영만</span></label>
+        </div>
+        <div id="difyBox">
+          <div class="status" id="apiState" style="justify-content:space-between">
+            <span style="display:flex;align-items:center;gap:8px"><span class="dot"></span><span>확인 중…</span></span>
+            <a href="#settings" class="btn" style="text-decoration:none">설정으로 이동</a>
+          </div>
+        </div>
+        <div id="localBox" hidden><div class="hint">서버에 LLM 이 설정되어 있으면(LLM_BASE_URL 등) 로직 점검도 수행합니다. 없으면 오타·미반영 파일 후보만 찾습니다.</div></div>
+      </section>
+
+      <section class="card">
+        <div class="step"><div class="num">3</div><div><h2>점검 실행</h2><p>다음 항목의 후보를 근거와 함께 보여 줍니다.</p></div></div>
+        <div class="chips"><span class="chip">로직 오류</span><span class="chip">오타</span><span class="chip">미반영 파일</span></div>
+        <button class="btn primary run" id="runBtn" type="button">▶ AI 코드 리뷰 시작</button>
+        <div class="hint" style="text-align:center;margin-top:8px">수정 후 같은 화면에서 다시 점검할 수 있습니다.</div>
+        <div id="err" class="err" hidden></div>
+      </section>
+
+      <section class="card">
+        <div class="step"><div class="num">↺</div><div><h2>최근 리뷰</h2><p id="histSub">업무를 선택하면 이전 요청 기록이 표시됩니다.</p></div></div>
+        <ul class="hist" id="hist"></ul>
+      </section>
+    </div>
+  </div>
+
+  <section id="result" class="card" hidden></section>
+  <p class="foot">API Key 는 이 브라우저와 점검 서버를 거쳐 Dify 로만 전달되며 화면·로그에 표시하지 않습니다. 입력한 diff 와 점검 결과는 업무별 기록으로 서버에 저장되며, 연결한 Dify 서버로 전송됩니다.</p>
+</div>
+
+<div id="view-settings" hidden>
+  <h1>설정</h1>
+  <p class="sub">점검에 사용할 Dify 워크플로 앱의 주소와 키를 입력하세요. 이 값은 홈 화면에는 표시되지 않습니다.</p>
+  <section class="card" style="max-width:680px">
+    <div class="step"><div class="num">⚙</div><div><h2>API 설정</h2><p>Dify 앱 화면 오른쪽 위 'API 접근'에서 확인할 수 있습니다.</p></div></div>
+    <label class="f" style="margin-top:0">API URL</label>
+    <input type="text" id="url" placeholder="http://dify.example.com/v1" autocomplete="off">
+    <label class="f">API Key</label>
+    <div class="keywrap">
+      <input type="password" id="key" placeholder="app-••••••••••••" autocomplete="off">
+      <button type="button" id="eye" title="표시/숨김">👁</button>
+    </div>
+    <label class="f">GitHub 토큰 (선택)</label>
+    <input type="password" id="ghToken" placeholder="ghp_••••••••  (공개 저장소는 비워도 됩니다)" autocomplete="off">
+    <div class="hint" id="ghHint">비공개 저장소를 쓰거나 호출 한도(토큰 없이 시간당 60회)에 걸릴 때만 입력하세요. 읽기 권한이면 충분합니다.</div>
+    <label style="display:flex;gap:8px;align-items:center;margin-top:12px;color:var(--muted);font-size:12.5px">
+      <input type="checkbox" id="remember"> 이 브라우저에 API Key·토큰 저장 (공용 PC 에서는 끄세요)
+    </label>
+    <div class="bar" style="margin-top:14px">
+      <button class="btn primary" id="saveBtn" type="button">저장</button>
+      <button class="btn" id="testBtn" type="button">🔗 연결 테스트</button>
+    </div>
+    <div class="status" id="status"><span class="dot"></span><span>아직 연결을 확인하지 않았습니다.</span></div>
+    <div class="hint" id="serverHint"></div>
+  </section>
+</div>
+</main>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const ta=$("diff"), hl=$("hl"), gin=$("gin");
+const LH=20, PADTOP=8;
+let marks={};            // 에디터 줄 index -> 'found' | 'check'
+let lineIndex={};        // "path:newLineNo" -> 에디터 줄 index 배열 (여러 커밋을 이어 붙이면 같은 위치가 여러 번 나옴)
+let curLines=[];
+
+function esc(s){return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function ls(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function ss(k){try{return sessionStorage.getItem(k)}catch(e){return null}}
+function put(st,k,v){try{(st==="l"?localStorage:sessionStorage).setItem(k,v)}catch(e){}}
+function del(k){try{localStorage.removeItem(k);sessionStorage.removeItem(k)}catch(e){}}
+
+/* ---- diff 줄 분류 (hunk 헤더의 줄 수를 따라가며 본문과 헤더를 구분) ---- */
+function classify(text){
+  const out=[], st={}; let path="",oldLeft=0,newLeft=0,newNo=0,m,pendingAdded=false,hdr=false;
+  const push=function(o){if(o.path===undefined)o.path=path;out.push(o);};
+  for(const raw of text.split("\n")){
+    const line=raw.replace(/\r$/,"");
+    if((oldLeft>0||newLeft>0)&&(line===""||" -+\\".indexOf(line[0])>=0)){
+      const s=line===""?" ":line[0];
+      if(s==="+"){push({c:"add",no:newNo});newNo++;newLeft--;}
+      else if(s==="-"){push({c:"del"});oldLeft--;}
+      else if(s==="\\"){push({c:"meta"});}
+      else{push({c:"ctx",no:newNo});newNo++;oldLeft--;newLeft--;}
+      continue;
+    }
+    oldLeft=newLeft=0;
+    if(line.indexOf("diff --git ")===0){m=line.match(/ b\/(.*)$/);if(m)path=m[1];hdr=true;push({c:"meta"});}
+    else if(line.indexOf("Index: ")===0){path=line.slice(7).trim();hdr=true;push({c:"meta"});}   // SVN
+    else if((m=line.match(/^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/))){
+      oldLeft=m[2]===undefined?1:+m[2]; newLeft=m[4]===undefined?1:+m[4]; newNo=+m[3]; push({c:"hunk"});}
+    else if(line.indexOf("+++ ")===0){m=line.match(/^\+\+\+ (?:b\/)?(.*?)(?:\t.*)?$/);
+      if(m&&m[1]!=="/dev/null"){path=m[1];if(pendingAdded)st[path]="added";} else st[path]="deleted";
+      pendingAdded=false;hdr=false;push({c:"meta"});}
+    else if(line.indexOf("--- ")===0){m=line.match(/^--- (?:a\/)?(.*?)(?:\t.*)?$/);
+      if(m&&m[1]==="/dev/null")pendingAdded=true; else if(m&&!hdr)path=m[1];   // diff --git / Index 로 경로가 정해졌으면 유지(이름 변경 시 옛 경로가 새 항목이 되는 것 방지)   // 신규 파일: 경로는 다음 '+++' 줄에서 정해짐
+      push({c:"meta"});}
+    else if(line.indexOf("new file mode")===0){st[path]="added";push({c:"meta"});}
+    else if(line.indexOf("deleted file mode")===0){st[path]="deleted";push({c:"meta"});}
+    else if(line.indexOf("rename to ")===0){path=line.slice(10).trim();st[path]="renamed";push({c:"meta"});}
+    else if(line.indexOf("index ")===0){push({c:"meta"});}
+    else if(line[0]==="+"){push({c:"add"});}      // hunk 헤더 없이 붙여넣은 조각
+    else if(line[0]==="-"){push({c:"del"});}
+    else push({c:"meta"});
+  }
+  out.status=st;
+  return out;
+}
+
+/* ---- 변경 파일 목록 / 파일별 보기 ---- */
+let curCls=[], viewFile=null, fileFind={}, filesSig="";
+function fileStats(cls){
+  const map={}, order=[];
+  cls.forEach(function(c,i){
+    if(!c.path)return;
+    if(!map[c.path]){map[c.path]={path:c.path,add:0,del:0,status:(cls.status&&cls.status[c.path])||"modified"};order.push(c.path);}
+    if(c.c==="add")map[c.path].add++; else if(c.c==="del")map[c.path].del++;
+  });
+  return order.map(function(p){return map[p];});
+}
+function shortDir(d){return d.length>40?d.slice(0,14)+"…"+d.slice(-24):d;}
+function renderFiles(){
+  const files=fileStats(curCls), box=$("filesBox");
+  const dirOf=function(p){const k=p.lastIndexOf("/");return k>=0?p.slice(0,k):"";};
+  files.sort(function(a,b){const x=dirOf(a.path),y=dirOf(b.path);return x<y?-1:x>y?1:(a.path<b.path?-1:a.path>b.path?1:0);});   // 같은 폴더끼리 묶기
+  box.hidden=!files.length; if(!files.length){viewFile=null;return;}
+  const sig=JSON.stringify([files,fileFind,viewFile]);
+  if(sig===filesSig)return; filesSig=sig;
+  const tot=files.reduce(function(a,f){a.a+=f.add;a.d+=f.del;return a;},{a:0,d:0});
+  $("filesTitle").textContent="변경 파일 "+files.length+"개  ·  +"+tot.a+" −"+tot.d;
+  $("allBtn").hidden=!viewFile;
+  let h="",lastDir=null;
+  files.forEach(function(f){
+    const k=f.path.lastIndexOf("/"), dir=k>=0?f.path.slice(0,k):"", name=k>=0?f.path.slice(k+1):f.path;
+    if(dir!==lastDir){h+='<div class="fdir" title="'+esc(dir)+'">'+esc(dir?shortDir(dir):"(루트)")+'</div>';lastDir=dir;}
+    const ic={added:"A",deleted:"D",renamed:"R"}[f.status]||"M", ff=fileFind[f.path]||{};
+    h+='<div class="frow'+(viewFile===f.path?" on":"")+'" data-path="'+esc(f.path)+'" title="'+esc(f.path)+'"><span class="fico '+ic+'">'+ic+'</span><span class="fname">'+esc(name)+'</span>'
+      +(ff.found?'<span class="fbadge f">지적 '+ff.found+'</span>':"")+(ff.check?'<span class="fbadge c">확인 '+ff.check+'</span>':"")+(ff.op?'<span class="fbadge o">의견 '+ff.op+'</span>':"")
+      +'<span class="fstat">'+(f.add?'<span class="a">+'+f.add+'</span>':"")+(f.del?'<span class="d">−'+f.del+'</span>':"")+'</span></div>';
+  });
+  $("flist").innerHTML=h;
+}
+function renderFileView(){
+  const v=$("fileView"); let rows="";
+  curCls.forEach(function(c,i){
+    if(c.path!==viewFile)return;
+    rows+='<div class="fr"><span class="no">'+(c.no!==undefined&&c.c!=="del"?c.no:"")+'</span><div class="ln '+c.c+(marks[i]?" "+marks[i]:"")+'" data-i="'+i+'">'+(esc(curLines[i])||" ")+'</div></div>';
+  });
+  v.innerHTML='<div class="in">'+rows+'</div>';
+}
+function showFile(path){
+  viewFile=path||null; filesSig="";
+  $("fileView").hidden=!viewFile; $("editor").hidden=!!viewFile;
+  if(viewFile){renderFileView();$("fileView").scrollTop=0;}
+  renderFiles();
+}
+$("flist").addEventListener("click",function(e){
+  const r=e.target.closest(".frow"); if(!r)return;
+  showFile(viewFile===r.dataset.path?null:r.dataset.path);
+});
+$("allBtn").addEventListener("click",function(){showFile(null);});
+
+function render(){
+  const text=ta.value, cls=classify(text);
+  const lines=text.split("\n");
+  lineIndex={};curLines=lines;curCls=cls;
+  let h="",g="",adds=0,dels=0;
+  for(let i=0;i<lines.length;i++){
+    const c=cls[i]||{c:"meta"};
+    if(c.c==="add")adds++; if(c.c==="del")dels++;
+    if(c.path&&c.no!==undefined&&c.c!=="del"){const k=c.path+":"+c.no;(lineIndex[k]=lineIndex[k]||[]).push(i);}
+    h+='<div class="ln '+c.c+(marks[i]?" "+marks[i]:"")+'" data-i="'+i+'">'+(esc(lines[i])||" ")+'</div>';
+    g+="<div>"+(i+1)+"</div>";
+  }
+  hl.innerHTML=h; gin.innerHTML=g;
+  renderFiles(); if(viewFile)renderFileView();
+  $("meta").textContent=text.trim()?("입력한 diff: "+lines.length+"줄 · +"+adds+" / -"+dels):"입력한 diff: 0줄";
+  sync();
+}
+function sync(){
+  hl.style.transform="translate("+(-ta.scrollLeft)+"px,"+(-ta.scrollTop)+"px)";
+  gin.style.transform="translateY("+(-ta.scrollTop)+"px)";
+}
+function resolveIdx(f){
+  if(f.line==null)return undefined;
+  const c=lineIndex[f.file+":"+f.line]; if(!c||!c.length)return undefined;
+  if(c.length===1||!f.evidence)return c[0];
+  const ev=String(f.evidence).trim();
+  for(let n=0;n<c.length;n++){const t=curLines[c[n]];if(t.slice(1).trim()===ev||t.trim()===ev)return c[n];}
+  return c[0];
+}
+function clearMarks(){marks={};fileFind={};$("flagLegend").hidden=true;}
+ta.addEventListener("input",function(){clearMarks();render();});
+ta.addEventListener("scroll",sync);
+ta.addEventListener("dragover",function(e){e.preventDefault();});
+ta.addEventListener("drop",function(e){e.preventDefault();if(e.dataTransfer.files[0])readFile(e.dataTransfer.files[0]);});
+function setDiff(t){viewFile=null;$("fileView").hidden=true;$("editor").hidden=false;ta.value=t;ta.scrollTop=0;ta.scrollLeft=0;clearMarks();render();}
+function readFile(f){
+  if(f.size>2000000){showErr("파일이 너무 큽니다 (최대 2MB).");return;}
+  const r=new FileReader();r.onload=function(){setDiff(String(r.result));};r.readAsText(f,"utf-8");
+}
+
+/* ---- 탭 ---- */
+document.querySelectorAll(".tab").forEach(function(b){b.addEventListener("click",function(){
+  document.querySelectorAll(".tab").forEach(function(x){x.classList.toggle("on",x===b)});
+  ["direct","upload","repo","github"].forEach(function(n){$("p-"+n).hidden=(n!==b.dataset.tab)});
+});});
+$("p-direct").hidden=false;
+$("fileIn").addEventListener("change",function(e){if(e.target.files[0])readFile(e.target.files[0]);});
+$("clearBtn").addEventListener("click",function(){setDiff("");$("gitStatus").value="";$("result").hidden=true;showErr("");});
+
+/* ---- 샘플 / 저장소 ---- */
+function api(path,body){
+  return fetch(path,{method:body?"POST":"GET",headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined})
+    .then(function(r){return r.json().catch(function(){return {error:"서버 응답을 해석하지 못했습니다 (HTTP "+r.status+")"}})});
+}
+api("/api/samples").then(function(list){
+  if(!Array.isArray(list))return;
+  list.forEach(function(s){const o=document.createElement("option");o.value=s.name;
+    o.textContent=s.name+(s.planted!==null?" · 심어 둔 오류 "+s.planted+"개":"");$("sampleSel").appendChild(o);});
+});
+$("sampleSel").addEventListener("change",function(){
+  const n=this.value; if(!n)return;
+  api("/api/samples/"+n).then(function(d){if(d.error){showErr(d.error);return;}setDiff(d.diff);$("gitStatus").value=d.git_status||"";if(d.git_status)$("gsBox").open=true;$("result").hidden=true;});
+  this.value="";
+});
+$("repoBtn").addEventListener("click",function(){
+  $("repoMsg").textContent="가져오는 중…";
+  api("/api/diff",{repo:$("repoPath").value,base:$("repoBase").value,head:$("repoHead").value}).then(function(d){
+    if(d.error){$("repoMsg").textContent="";showErr(d.error);return;}
+    showErr("");$("repoMsg").textContent="가져왔습니다.";setDiff(d.diff);$("gitStatus").value=d.git_status||"";$("gsBox").open=!!d.git_status;
+  });
+});
+
+/* ---- GitHub 커밋 ---- */
+let ghPage=1, ghRepoCur="";
+function ghTok(){return {github_token:$("ghToken").value.trim()};}
+function loadCommits(page){
+  const repo=$("ghRepo").value.trim();
+  if(!repo){$("ghMsg").textContent="저장소를 입력하세요. 예) pallets/flask";return;}
+  $("ghMsg").textContent="불러오는 중…";$("ghBtn").disabled=true;
+  api("/api/github/commits",Object.assign({repo:repo,branch:$("ghBranch").value,page:page},ghTok())).then(function(d){
+    $("ghBtn").disabled=false;
+    if(d.error){$("ghMsg").textContent="";showErr(d.error);return;}
+    showErr("");put("l","rv.ghrepo",repo);ghRepoCur=d.repo;ghPage=page;
+    if(page===1){$("ghList").innerHTML="";ghLast=-1;ghRefresh();}
+    $("ghMsg").textContent=d.repo+" · 커밋을 누르면 diff 가 입력창에 채워집니다.";
+    $("ghList").insertAdjacentHTML("beforeend",d.commits.map(function(c){
+      return '<li data-sha="'+esc(c.sha)+'"><span class="chk">✓</span><span class="sha">'+esc(c.short)+'</span><div class="main"><div class="msg">'+esc(c.message||"(메시지 없음)")+'</div><div class="t">'+esc(c.author)+' · '+esc(c.date)+'</div></div></li>';}).join(""));
+    $("ghMore").hidden=!d.has_more;
+    if(!d.commits.length&&page===1)$("ghList").innerHTML='<li class="empty" style="cursor:default">커밋이 없습니다.</li>';
+  });
+}
+$("ghBtn").addEventListener("click",function(){loadCommits(1);});
+$("ghMore").addEventListener("click",function(){loadCommits(ghPage+1);});
+$("ghRepo").addEventListener("keydown",function(e){if(e.key==="Enter")loadCommits(1);});
+let ghLast=-1;
+function ghItems(){return Array.prototype.slice.call($("ghList").querySelectorAll("li[data-sha]"));}
+function ghSelected(){return ghItems().filter(function(x){return x.classList.contains("sel");});}
+function ghRefresh(){
+  const n=ghSelected().length;
+  $("ghSelBar").hidden=n===0;
+  $("ghSelCount").textContent="커밋 "+n+"개 선택됨 (오래된 것부터 합쳐서 한 번에 점검)";
+}
+$("ghList").addEventListener("click",function(e){
+  const li=e.target.closest("li[data-sha]");if(!li)return;
+  const items=ghItems(), idx=items.indexOf(li);
+  if(e.shiftKey&&ghLast>=0){
+    const lo=Math.min(ghLast,idx),hi=Math.max(ghLast,idx);
+    items.forEach(function(x,k){if(k>=lo&&k<=hi)x.classList.add("sel");});
+  }else{li.classList.toggle("sel");}
+  ghLast=idx;
+  if(ghSelected().length>20){li.classList.remove("sel");showErr("한 번에 최대 20개 커밋까지 선택할 수 있습니다.");}
+  ghRefresh();
+});
+$("ghClear").addEventListener("click",function(){ghItems().forEach(function(x){x.classList.remove("sel");});ghLast=-1;ghRefresh();});
+$("ghLoad").addEventListener("click",function(){
+  const sel=ghSelected(); if(!sel.length)return;
+  const shas=sel.map(function(x){return x.dataset.sha;}).reverse();   // 목록은 최신순 → 오래된 것부터
+  $("ghMsg").textContent="커밋 "+shas.length+"개의 diff 를 가져오는 중…";$("ghLoad").disabled=true;
+  api("/api/github/diff",Object.assign({repo:ghRepoCur,shas:shas},ghTok())).then(function(d){
+    $("ghLoad").disabled=false;
+    if(d.error){$("ghMsg").textContent="";showErr(d.error);return;}
+    showErr("");setDiff(d.diff);$("gitStatus").value="";$("result").hidden=true;
+    $("ghMsg").textContent="커밋 "+d.count+"개를 오래된 순으로 합쳐 불러왔습니다. 커밋된 변경분이라 '미반영 파일' 점검(git status)은 하지 않습니다.";
+    $("editor").scrollIntoView({behavior:"smooth",block:"center"});
+  });
+});
+
+/* ---- API 설정 ---- */
+function engine(){return document.querySelector('input[name=engine]:checked').value;}
+document.querySelectorAll('input[name=engine]').forEach(function(r){r.addEventListener("change",function(){
+  $("difyBox").hidden=engine()!=="dify";$("localBox").hidden=engine()==="dify";});});
+$("eye").addEventListener("click",function(){const k=$("key");k.type=k.type==="password"?"text":"password";});
+function setStatus(kind,msg){$("status").innerHTML='<span class="dot '+kind+'"></span><span>'+esc(msg)+'</span>';}
+let serverKey=false;
+(function(){
+  const u=ls("rv.url")||ss("rv.url"), k=ls("rv.key")||ss("rv.key");
+  if(u)$("url").value=u; if(k){$("key").value=k;} $("remember").checked=!!(ls("rv.key")||ls("rv.gh"));
+  const g=ls("rv.gh")||ss("rv.gh"); if(g)$("ghToken").value=g;
+  const gr=ls("rv.ghrepo"); if(gr)$("ghRepo").value=gr;
+  api("/api/config").then(function(c){
+    serverKey=!!c.server_key;
+    if(c.dify_url&&!$("url").value)$("url").value=c.dify_url;
+    if(c.server_key)$("serverHint").textContent="서버에 기본 API Key 가 설정되어 있어 Key 를 비워도 됩니다.";
+    if(c.github_token)$("ghHint").textContent="서버에 기본 GitHub 토큰이 설정되어 있어 비워도 됩니다.";
+    (c.tasks||[]).forEach(function(t){const o=document.createElement("option");o.value=t;o.textContent=t;$("taskSel").appendChild(o);});
+    const saved=ls("rv.task"); if(saved&&(c.tasks||[]).indexOf(saved)>=0)$("taskSel").value=saved;
+    refreshApiState(); loadHistory();
+  });
+  refreshApiState();
+})();
+function saveSettings(){
+  put("l","rv.url",$("url").value);
+  del("rv.key"); if($("key").value)put($("remember").checked?"l":"s","rv.key",$("key").value);
+  del("rv.gh"); if($("ghToken").value)put($("remember").checked?"l":"s","rv.gh",$("ghToken").value);
+}
+function dify(){return {dify_url:$("url").value.trim(),dify_key:$("key").value.trim()};}
+function apiReady(){return !!$("url").value.trim()&&(!!$("key").value.trim()||serverKey);}
+function refreshApiState(){
+  const ok=apiReady();
+  $("apiState").firstElementChild.innerHTML='<span class="dot '+(ok?"ok":"warn")+'"></span><span>'+(ok?"API 설정됨":"API 설정 필요 — 설정 탭에서 입력하세요")+'</span>';
+}
+$("saveBtn").addEventListener("click",function(){saveSettings();refreshApiState();setStatus("ok","저장했습니다. 연결 테스트로 확인해 보세요.");});
+$("url").addEventListener("input",refreshApiState);$("key").addEventListener("input",refreshApiState);
+$("testBtn").addEventListener("click",function(){
+  saveSettings();refreshApiState();setStatus("warn","연결 확인 중…");$("testBtn").disabled=true;
+  api("/api/dify/test",dify()).then(function(d){
+    $("testBtn").disabled=false;
+    if(d.ok&&!d.warning)setStatus("ok","연결됨 — API 가 정상적으로 연결되었습니다.");
+    else if(d.ok)setStatus("warn","연결됨, 확인 필요: "+d.warning);
+    else setStatus("bad",d.error||"연결에 실패했습니다.");
+  });
+});
+
+/* ---- 실행 ---- */
+function showErr(m){const e=$("err");e.hidden=!m;e.textContent=m||"";}
+$("runBtn").addEventListener("click",function(){
+  showErr("");
+  if(!$("taskSel").value){showErr("업무를 선택하세요.");$("taskSel").focus();return;}
+  if(!ta.value.trim()){showErr("변경 diff 를 입력하세요.");return;}
+  if(engine()==="dify"&&!apiReady()){showErr("API 설정이 필요합니다. 왼쪽 메뉴의 '설정'에서 API URL 과 Key 를 입력하세요.");return;}
+  saveSettings();
+  const b=$("runBtn");b.disabled=true;b.innerHTML='<span class="spin"></span>점검 중… (모델에 따라 수십 초 걸릴 수 있습니다)';
+  const body=Object.assign({task:$("taskSel").value,engine:engine(),diff:ta.value,git_status:$("gitStatus").value,repo:$("repoPath").value},dify());
+  api("/api/review",body).then(function(d){
+    b.disabled=false;b.innerHTML="▶ AI 코드 리뷰 시작";
+    if(d.error){showErr(d.error);return;}
+    showResult(d);loadHistory();
+  }).catch(function(){b.disabled=false;b.innerHTML="▶ AI 코드 리뷰 시작";showErr("점검 서버에 연결하지 못했습니다.");});
+});
+
+/* ---- 결과 ---- */
+function card(f,i){
+  const op=f.status==="의견", cls=op?"o":(f.status==="지적"?"f":"c");
+  const where=i!==undefined?'<a class="loc" data-i="'+i+'">'+esc(f.file)+':'+f.line+'</a>'
+    :(f.file?'<span class="mono">'+esc(f.file)+(f.line!=null?':'+f.line:'')+'</span>':'<span class="mono" style="color:var(--muted)">전체</span>');
+  const head=op?'<span class="tag o">의견</span>'+(f.category?'<span class="tag t">'+esc(f.category)+'</span>':"")
+      +(f.priority?'<span class="tag pr '+({"상":"hi","중":"mid"}[f.priority]||"")+'">우선순위 '+esc(f.priority)+'</span>':"")
+    :'<span class="tag '+cls+'">'+esc(f.status)+'</span><span class="tag t">'+esc(f.type_label||f.type)+'</span>';
+  return '<div class="finding '+cls+'"><div class="fh">'+head+where+(f.source==="llm"?'<span class="tag t">AI</span>':'<span class="tag t">규칙</span>')+'</div>'+
+    (f.evidence?'<pre class="ev">'+esc(f.evidence)+'</pre>':'')+'<div class="reason">'+esc(f.reason)+'</div></div>';
+}
+function showResult(d,savedAt){
+  const D=d.findings.filter(function(f){return f.status!=="의견"}), O=d.findings.filter(function(f){return f.status==="의견"});
+  const F=D.filter(function(f){return f.status==="지적"}), C=D.filter(function(f){return f.status!=="지적"});
+  // diff 에디터에 지적 위치 표시 (의견은 결함 표시를 덮어쓰지 않는다)
+  marks={};
+  d.findings.forEach(function(f){
+    const i=resolveIdx(f); if(i===undefined)return;
+    const m=f.status==="지적"?"found":(f.status==="의견"?"opn":"check");
+    const rank={found:3,check:2,opn:1};
+    if(!marks[i]||rank[m]>rank[marks[i]])marks[i]=m;
+  });
+  fileFind={};d.findings.forEach(function(f){
+    if(!f.file)return;
+    const o=fileFind[f.file]=fileFind[f.file]||{found:0,check:0,op:0};
+    if(f.status==="지적")o.found++;else if(f.status==="의견")o.op++;else o.check++;
+  });
+  render();$("flagLegend").hidden=!Object.keys(marks).length;
+  let h='<div class="step"><div class="num">✓</div><div><h2>점검 결과</h2><p>'+(savedAt?"저장된 결과 · "+esc(savedAt)+" · ":"")+(d.engine==="dify"?"Dify 워크플로":"내장 규칙 점검")+' · '+d.elapsed+'초</p></div></div>';
+  h+='<div class="sum"><span class="pill f">지적 '+F.length+'건</span><span class="pill c">확인 필요 '+C.length+'건</span>'+(O.length?'<span class="pill o">의견 '+O.length+'건</span>':"")+'<span class="pill n">변경 파일 '+d.files.length+'개</span></div>';
+  (d.notes||[]).forEach(function(n){h+='<div class="note">'+esc(n)+'</div>';});
+  h+='<table><tr><th>변경 파일</th><th>상태</th><th>+</th><th>-</th></tr>'+d.files.map(function(f){
+    return '<tr><td><code>'+esc(f.path)+'</code></td><td>'+esc(f.status)+'</td><td>'+f.added+'</td><td>'+f.removed+'</td></tr>';}).join("")+'</table>';
+  h+='<h3 style="margin:22px 0 4px;font-size:15px">지적 사항</h3>';
+  if(!D.length)h+='<div class="okbox">점검한 범위에서 지적할 결함이 없습니다. (점검 범위 밖의 오류는 여전히 있을 수 있습니다)</div>';
+  D.forEach(function(f){h+=card(f,resolveIdx(f));});
+  if(O.length){
+    h+='<h3 style="margin:26px 0 4px;font-size:15px">리뷰 의견 <span style="color:var(--muted);font-weight:400;font-size:12.5px">— 결함은 아니지만 운영 소스 관점에서 짚어 볼 점</span></h3>';
+    O.forEach(function(f){h+=card(f,resolveIdx(f));});
+  }
+  h+='<p class="foot">AI 는 후보와 의견을 제안할 뿐이며 수정 여부는 개발자가 정합니다. 고친 뒤 위 입력창을 수정하고 다시 점검하세요. ③ 동료 코드리뷰는 그대로 진행합니다.</p>';
+  const r=$("result");r.innerHTML=h;r.hidden=false;
+  r.querySelectorAll("a.loc").forEach(function(a){a.addEventListener("click",function(){jumpTo(+a.dataset.i);});});
+  if(!savedAt)r.scrollIntoView({behavior:"smooth",block:"start"});
+}
+function jumpTo(i){
+  if(viewFile)showFile(null);
+  $("editor").scrollIntoView({behavior:"smooth",block:"center"});
+  ta.scrollTop=Math.max(0,i*LH-120);sync();
+  const el=hl.querySelector('.ln[data-i="'+i+'"]');
+  if(el){el.classList.remove("flash");void el.offsetWidth;el.classList.add("flash");}
+}
+
+/* ---- 업무별 기록 ---- */
+function when(iso){return iso.slice(5,16).replace("T"," ").replace("-","/");}
+function loadHistory(){
+  const t=$("taskSel").value, ul=$("hist");
+  $("histSub").textContent=t?(t+"의 이전 요청 기록"):"업무를 선택하면 이전 요청 기록이 표시됩니다.";
+  if(!t){ul.innerHTML="";return;}
+  api("/api/history?task="+encodeURIComponent(t)).then(function(list){
+    if(!Array.isArray(list)){ul.innerHTML='<li class="empty">기록을 불러오지 못했습니다.</li>';return;}
+    if(!list.length){ul.innerHTML='<li class="empty" style="cursor:default">아직 이 업무의 요청 기록이 없습니다.</li>';return;}
+    ul.innerHTML=list.map(function(h){
+      const more=h.files.length>1?" 외 "+(h.files.length-1)+"개":"";
+      const pills=(h.found?'<span class="mini f">지적 '+h.found+'</span>':"")+(h.check?'<span class="mini c">확인 '+h.check+'</span>':"")+(h.opinion?'<span class="mini o">의견 '+h.opinion+'</span>':"")+(!h.found&&!h.check?'<span class="mini z">결함 없음</span>':"");
+      return '<li data-id="'+h.id+'"><div class="main"><div class="fn">'+esc(h.files[0]||"(파일 없음)")+esc(more)+'</div><div class="t">'+esc(when(h.created_at))+' · '+(h.engine==="dify"?"Dify":"내장")+'</div></div><div class="pills">'+pills+'</div><button class="x" data-del="'+h.id+'" title="기록 삭제">✕</button></li>';
+    }).join("");
+  });
+}
+$("hist").addEventListener("click",function(e){
+  const del=e.target.closest("[data-del]");
+  if(del){e.stopPropagation();if(confirm("이 기록을 삭제할까요?"))fetch("/api/history/"+del.dataset.del,{method:"DELETE"}).then(loadHistory);return;}
+  const li=e.target.closest("li[data-id]"); if(!li)return;
+  api("/api/history/"+li.dataset.id).then(function(r){
+    if(r.error){showErr(r.error);return;}
+    showErr("");setDiff(r.diff);$("gitStatus").value=r.git_status||"";$("gsBox").open=!!r.git_status;
+    showResult(r.result,when(r.created_at));
+    $("editor").scrollIntoView({behavior:"smooth",block:"center"});
+  });
+});
+$("taskSel").addEventListener("change",function(){put("l","rv.task",this.value);loadHistory();});
+
+/* ---- 화면 전환 (리뷰 / 설정) ---- */
+function route(){
+  const v=location.hash==="#settings"?"settings":"review";
+  $("view-review").hidden=v!=="review";$("view-settings").hidden=v!=="settings";
+  document.querySelectorAll("nav a").forEach(function(a){a.classList.toggle("on",a.dataset.view===v);});
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);route();
+render();
+})();
+</script>
+</body>
+</html>

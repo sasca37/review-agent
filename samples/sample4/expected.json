@@ -1,0 +1,31 @@
+{
+  "diff_paths": [
+    "FeeCalculator.java",
+    "FeeMapper.java"
+  ],
+  "planted": [
+    {
+      "id": "typo-ident",
+      "type": "typo",
+      "file": "FeeCalculator.java",
+      "line": 10
+    },
+    {
+      "id": "typo-message",
+      "type": "typo",
+      "file": "FeeCalculator.java",
+      "line": 8
+    },
+    {
+      "id": "missing-caller",
+      "type": "missing_file",
+      "file": "TransferController.java"
+    },
+    {
+      "id": "missing-xml",
+      "type": "missing_file",
+      "file": "FeeMapper.xml"
+    }
+  ],
+  "note": "typo-ident, missing-* 는 규칙으로 검출, typo-message 는 LLM 필요 (CHK-TYPO-002)"
+}

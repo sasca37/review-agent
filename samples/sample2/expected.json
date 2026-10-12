@@ -1,0 +1,26 @@
+{
+  "diff_paths": [
+    "LoanService.java"
+  ],
+  "planted": [
+    {
+      "id": "null-customer",
+      "type": "logic",
+      "file": "LoanService.java",
+      "line": 17
+    },
+    {
+      "id": "boundary-grade",
+      "type": "logic",
+      "file": "LoanService.java",
+      "line": 18
+    },
+    {
+      "id": "swallowed-exception",
+      "type": "logic",
+      "file": "LoanService.java",
+      "line": 24
+    }
+  ],
+  "note": "전부 LLM 필요. 지식 연결 시 CHK-LOGIC-001/003/006 이 도움이 되는지 비교"
+}
