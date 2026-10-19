@@ -3,6 +3,7 @@ from __future__ import annotations
 import glob
 import json
 import os
+import subprocess
 import time
 
 from flask import Flask, jsonify, render_template, request
@@ -137,10 +138,9 @@ def create_app(llm=None, db_path=None) -> Flask:
             return jsonify(error="저장소 경로가 존재하지 않습니다."), 400
         try:
             diff = get_diff(repo, (body.get("base") or "").strip() or None, (body.get("head") or "").strip() or None)
-            import subprocess
             status = subprocess.run(["git", "-C", repo, "status", "--porcelain"], capture_output=True,
                                     text=True, timeout=30).stdout
-        except (GitError, OSError, Exception) as e:
+        except (GitError, OSError, subprocess.SubprocessError) as e:
             return jsonify(error=str(e) or "git 실행에 실패했습니다."), 400
         if not diff.strip():
             return jsonify(error="변경된 내용이 없습니다. base/head 를 확인하세요."), 400
