@@ -128,11 +128,12 @@ def test_review_errors(client, dify_url):
     assert r.status_code == 400 and "변경 파일" in r.json["error"]
 
 
-def test_server_default_credentials(client, dify_url, monkeypatch):
+def test_server_env_key_is_never_used(client, dify_url, monkeypatch):
     monkeypatch.setenv("DIFY_API_URL", dify_url)
     monkeypatch.setenv("DIFY_API_KEY", KEY)
-    assert client.get("/api/config").json["server_key"] is True
-    assert client.post("/api/review", json={"task": TASK, "engine": "dify", "diff": DIFF}).status_code == 200
+    assert "server_key" not in client.get("/api/config").json
+    assert not client.post("/api/dify/test", json={"dify_url": dify_url}).json["ok"]
+    assert client.post("/api/review", json={"task": TASK, "engine": "dify", "diff": DIFF, "dify_url": dify_url}).status_code != 200
 
 
 def test_local_engine(client):

@@ -297,7 +297,6 @@
       <button class="btn" id="testBtn" type="button">🔗 연결 테스트</button>
     </div>
     <div class="status" id="status"><span class="dot"></span><span>아직 연결을 확인하지 않았습니다.</span></div>
-    <div class="hint" id="serverHint"></div>
   </section>
 </div>
 </main>
@@ -541,16 +540,12 @@ document.querySelectorAll('input[name=engine]').forEach(function(r){r.addEventLi
   $("difyBox").hidden=engine()!=="dify";$("localBox").hidden=engine()==="dify";});});
 $("eye").addEventListener("click",function(){const k=$("key");k.type=k.type==="password"?"text":"password";});
 function setStatus(kind,msg){$("status").innerHTML='<span class="dot '+kind+'"></span><span>'+esc(msg)+'</span>';}
-let serverKey=false;
 (function(){
   const u=ls("rv.url")||ss("rv.url"), k=ls("rv.key")||ss("rv.key");
   if(u)$("url").value=u; if(k){$("key").value=k;} $("remember").checked=!!(ls("rv.key")||ls("rv.gh"));
   const g=ls("rv.gh")||ss("rv.gh"); if(g)$("ghToken").value=g;
   const gr=ls("rv.ghrepo"); if(gr)$("ghRepo").value=gr;
   api("/api/config").then(function(c){
-    serverKey=!!c.server_key;
-    if(c.dify_url&&!$("url").value)$("url").value=c.dify_url;
-    if(c.server_key)$("serverHint").textContent="서버에 기본 API Key 가 설정되어 있어 Key 를 비워도 됩니다.";
     if(c.github_token)$("ghHint").textContent="서버에 기본 GitHub 토큰이 설정되어 있어 비워도 됩니다.";
     (c.tasks||[]).forEach(function(t){const o=document.createElement("option");o.value=t;o.textContent=t;$("taskSel").appendChild(o);});
     const saved=ls("rv.task"); if(saved&&(c.tasks||[]).indexOf(saved)>=0)$("taskSel").value=saved;
@@ -564,7 +559,7 @@ function saveSettings(){
   del("rv.gh"); if($("ghToken").value)put($("remember").checked?"l":"s","rv.gh",$("ghToken").value);
 }
 function dify(){return {dify_url:$("url").value.trim(),dify_key:$("key").value.trim()};}
-function apiReady(){return !!$("url").value.trim()&&(!!$("key").value.trim()||serverKey);}
+function apiReady(){return !!$("url").value.trim()&&!!$("key").value.trim();}
 function refreshApiState(){
   const ok=apiReady();
   $("apiState").firstElementChild.innerHTML='<span class="dot '+(ok?"ok":"warn")+'"></span><span>'+(ok?"API 설정됨":"API 설정 필요 — 설정 탭에서 입력하세요")+'</span>';

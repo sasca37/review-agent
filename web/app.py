@@ -58,12 +58,12 @@ def create_app(llm=None, db_path=None) -> Flask:
 
     @app.get("/api/config")
     def config():
-        return jsonify(tasks=TASKS, dify_url=os.getenv("DIFY_API_URL", ""), server_key=bool(os.getenv("DIFY_API_KEY")), github_token=bool(os.getenv("GITHUB_TOKEN")),
+        return jsonify(tasks=TASKS, github_token=bool(os.getenv("GITHUB_TOKEN")),
                        local_llm=app.config["LLM"] is not None)
 
     def creds(body):
-        url = (body.get("dify_url") or os.getenv("DIFY_API_URL") or "").strip()
-        key = (body.get("dify_key") or os.getenv("DIFY_API_KEY") or "").strip()
+        url = (body.get("dify_url") or "").strip()
+        key = (body.get("dify_key") or "").strip()
         return url, key
 
     @app.post("/api/dify/test")
