@@ -35,12 +35,16 @@ def _files(diff: str):
 
 
 def merge_files(files):
-    """여러 커밋 diff 를 이어 붙이면 같은 파일이 여러 번 나온다. 목록에서는 한 줄로 합산한다."""
+    """여러 커밋 diff 를 이어 붙이면 같은 파일이 여러 번 나온다. 목록에서는 한 줄로 합산한다.
+    상태는 마지막에 삭제됐으면 deleted, 처음에 추가·이름 변경됐으면 그 상태, 아니면 마지막 커밋의 상태."""
     out = {}
     for f in files:
         if f.path in out:
-            out[f.path]["added"] += f.added
-            out[f.path]["removed"] += f.removed
+            o = out[f.path]
+            o["added"] += f.added
+            o["removed"] += f.removed
+            if f.status == "deleted" or o["status"] not in ("added", "renamed"):
+                o["status"] = f.status
         else:
             out[f.path] = {"path": f.path, "status": f.status, "added": f.added, "removed": f.removed}
     return list(out.values())

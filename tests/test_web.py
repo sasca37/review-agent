@@ -208,3 +208,15 @@ def test_opinions_flow_through_and_history_counts_them(client, dify_url, monkeyp
 def test_ui_renders_opinion_section(client):
     html = client.get("/").get_data(as_text=True)
     assert "리뷰 의견" in html and 'pill o' in html and 'fbadge o' in html and "ln.opn" in html
+
+
+def test_merged_file_status_follows_last_commit():
+    from types import SimpleNamespace as F
+    from web.app import merge_files
+    rows = merge_files([F(path="t.py", status="added", added=3, removed=0),
+                        F(path="t.py", status="deleted", added=0, removed=3),
+                        F(path="r.py", status="modified", added=1, removed=0),
+                        F(path="r.py", status="renamed", added=0, removed=0),
+                        F(path="n.py", status="added", added=1, removed=0),
+                        F(path="n.py", status="modified", added=1, removed=1)])
+    assert {r["path"]: r["status"] for r in rows} == {"t.py": "deleted", "r.py": "renamed", "n.py": "added"}
