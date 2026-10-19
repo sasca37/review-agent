@@ -65,6 +65,15 @@ def test_merge_grounds_llm_and_handles_bad_json():
     assert "해석하지 못해" in bad["report"]
 
 
+def test_merge_grounds_evidence_in_earlier_commit_of_same_file():
+    # 커밋 여러 개를 합친 diff: 같은 파일이 커밋마다 따로 나온다. 앞 커밋의 줄을 인용해도 근거로 인정해야 한다
+    files = [{"path": "a.py", "text": "+first = 1\n"}, {"path": "a.py", "text": "+second = 2\n"}]
+    llm = json.dumps([{"type": "logic", "file": "a.py", "line": 1, "evidence": "first = 1", "reason": "r"}])
+    res = merge.main(llm, "[]", json.dumps(files), "")
+    assert [x["status"] for x in json.loads(res["findings_json"])] == ["지적"]
+    assert "변경 파일 1개" in res["report"]
+
+
 def test_no_false_positive_on_clean_diff():
     d = ("diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1,2 +1,2 @@\n def total(items):\n"
          "-    return sum(items)\n+    return sum(i for i in items)\n")

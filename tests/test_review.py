@@ -70,6 +70,12 @@ def test_ungrounded_llm_finding_downgraded():
     assert by_ev["x = nothing_here()"] == NEEDS_CHECK
 
 
+def test_evidence_in_earlier_commit_of_same_file_is_grounded():
+    later = CLEAN.replace("sum(items)", "len(items)").replace("sum(i for i in items)", "len(list(items))")
+    r = review(CLEAN + later, llm=FakeLLM())  # 같은 a.py 가 두 번: 근거는 첫 조각에만 있다
+    assert FOUND in {f.status for f in r.findings if f.evidence == "return sum(i for i in items)"}
+
+
 def test_all_samples_rule_only_baseline():
     """규칙 기반(LLM 없음) 기준선. LLM 필요 항목은 놓치는 것이 정상이고, 지어낸 지적은 0이어야 한다."""
     expected_caught = {
