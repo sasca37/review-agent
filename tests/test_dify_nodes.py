@@ -412,3 +412,14 @@ def test_different_opinions_on_same_file_are_not_collapsed_but_exact_duplicates_
     b = dict(OPINION, line=None, evidence="", reason="의견 B")
     assert len(merged(json.dumps([a, b]))[0]) == 2
     assert len(merged(json.dumps([a, dict(a)]))[0]) == 1
+
+
+def test_evidence_is_matched_against_new_code_only():
+    d = ("diff --git a/a.py b/a.py\n--- a/a.py\n+++ b/a.py\n@@ -1,2 +1,3 @@\n-old_call()\n"
+         "+if a > b:\n+    return a\n keep()\n")
+    out = parse_diff.main(d, "")
+    multi = {"type": "logic", "file": "a.py", "evidence": "if a > b:\n    return a", "reason": "여러 줄 인용"}
+    removed = {"type": "logic", "file": "a.py", "evidence": "old_call()", "reason": "삭제된 줄 인용"}
+    res = merge.main(json.dumps([multi, removed]), "[]", out["files_json"], "")
+    status = {x["reason"].split(" (")[0]: x["status"] for x in json.loads(res["findings_json"])}
+    assert status == {"여러 줄 인용": "지적", "삭제된 줄 인용": "확인 필요"}

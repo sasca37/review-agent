@@ -88,3 +88,13 @@ def test_all_samples_rule_only_baseline():
         r = evaluate(os.path.join(ROOT, "samples", f"sample{n}"))
         assert set(r["caught"]) == caught, n
         assert r["false_positives"] == [], n
+
+
+def test_local_evidence_matched_against_new_code_only():
+    class Quoting:
+        def review_file(self, f):
+            from reviewer.models import Finding
+            return [Finding(LOGIC, f.path, 2, "result = sum(items)\nresult += 1", "여러 줄", FOUND, "llm"),
+                    Finding(LOGIC, f.path, 2, "return sum(items)", "삭제된 줄", FOUND, "llm")], None
+    by_reason = {f.reason.split(" (")[0]: f.status for f in review(DIFF, llm=Quoting()).findings if f.type == LOGIC}
+    assert by_reason == {"여러 줄": FOUND, "삭제된 줄": NEEDS_CHECK}

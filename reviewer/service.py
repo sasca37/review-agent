@@ -28,7 +28,7 @@ def review(
     else:
         by_path = {}  # 커밋 여러 개를 합친 diff 에는 같은 파일이 여러 번 나온다
         for f in files:
-            by_path[f.path] = by_path.get(f.path, "") + "\n" + f.text
+            by_path[f.path] = by_path.get(f.path, "") + "\n" + new_side(f.text)
         for f in files:
             if f.status == "deleted":
                 continue
@@ -44,6 +44,20 @@ def review(
 
 def _norm(s: str) -> str:
     return re.sub(r"\s+", "", s)
+
+
+def new_side(text: str) -> str:
+    """diff 원문에서 변경 후 코드(추가·문맥 줄)만 접두어 없이 뽑는다. 근거는 이 내용과 대조한다
+    (+/- 접두어가 붙은 채 비교하면 여러 줄 인용이 안 맞고, 삭제된 줄 인용이 맞는 것으로 잘못 확인된다)."""
+    out, in_hunk = [], True  # 헤더 없이 hunk 본문만 온 경우도 받는다
+    for line in (text or "").splitlines():
+        if line.startswith("@@"):
+            in_hunk = True
+        elif line.startswith("diff --git "):
+            in_hunk = False
+        elif in_hunk and line[:1] in ("+", " "):
+            out.append(line[1:])
+    return "\n".join(out)
 
 
 def ground(f: Finding, by_path) -> Finding:
