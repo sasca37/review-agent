@@ -511,13 +511,15 @@ function ghRefresh(){
 }
 $("ghList").addEventListener("click",function(e){
   const li=e.target.closest("li[data-sha]");if(!li)return;
-  const items=ghItems(), idx=items.indexOf(li);
+  const items=ghItems(), idx=items.indexOf(li), before=ghSelected();
   if(e.shiftKey&&ghLast>=0){
     const lo=Math.min(ghLast,idx),hi=Math.max(ghLast,idx);
     items.forEach(function(x,k){if(k>=lo&&k<=hi)x.classList.add("sel");});
   }else{li.classList.toggle("sel");}
-  ghLast=idx;
-  if(ghSelected().length>20){li.classList.remove("sel");showErr("한 번에 최대 20개 커밋까지 선택할 수 있습니다.");}
+  if(ghSelected().length>20){  // Shift 범위 선택까지 이번 클릭 전체를 되돌린다
+    items.forEach(function(x){x.classList.toggle("sel",before.indexOf(x)>=0);});
+    showErr("한 번에 최대 20개 커밋까지 선택할 수 있습니다.");
+  }else{ghLast=idx;}
   ghRefresh();
 });
 $("ghClear").addEventListener("click",function(){ghItems().forEach(function(x){x.classList.remove("sel");});ghLast=-1;ghRefresh();});
