@@ -423,3 +423,11 @@ def test_evidence_is_matched_against_new_code_only():
     res = merge.main(json.dumps([multi, removed]), "[]", out["files_json"], "")
     status = {x["reason"].split(" (")[0]: x["status"] for x in json.loads(res["findings_json"])}
     assert status == {"여러 줄 인용": "지적", "삭제된 줄 인용": "확인 필요"}
+
+
+def test_quoted_non_ascii_path_is_decoded():
+    d = ('diff --git "a/\\355\\225\\234.txt" "b/\\355\\225\\234.txt"\nindex 1..2 100644\n'
+         '--- "a/\\355\\225\\234.txt"\n+++ "b/\\355\\225\\234.txt"\n@@ -1 +1 @@\n-a\n+b\n')
+    out = parse_diff.main(d, ' M "\\355\\225\\234.txt"\n')
+    assert [f["path"] for f in json.loads(out["files_json"])] == ["한.txt"]
+    assert json.loads(out["rule_findings_json"]) == []  # diff 에 있는 파일을 미반영으로 지적하지 않는다

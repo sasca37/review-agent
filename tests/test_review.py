@@ -98,3 +98,10 @@ def test_local_evidence_matched_against_new_code_only():
                     Finding(LOGIC, f.path, 2, "return sum(items)", "삭제된 줄", FOUND, "llm")], None
     by_reason = {f.reason.split(" (")[0]: f.status for f in review(DIFF, llm=Quoting()).findings if f.type == LOGIC}
     assert by_reason == {"여러 줄": FOUND, "삭제된 줄": NEEDS_CHECK}
+
+
+def test_local_quoted_non_ascii_path_is_decoded():
+    d = ('diff --git "a/\\355\\225\\234.txt" "b/\\355\\225\\234.txt"\nindex 1..2 100644\n'
+         '--- "a/\\355\\225\\234.txt"\n+++ "b/\\355\\225\\234.txt"\n@@ -1 +1 @@\n-a\n+b\n')
+    r = review(d, git_status=' M "\\355\\225\\234.txt"\n')
+    assert [f.path for f in r.files] == ["한.txt"] and r.findings == []

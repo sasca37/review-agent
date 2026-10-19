@@ -1,3 +1,4 @@
+import codecs
 import json
 import re
 
@@ -50,8 +51,15 @@ def osa(a, b):
     return d[len(a)][len(b)]
 
 
+def unquote(p):
+    """git 이 따옴표로 감싼 경로("\\355\\225\\234.txt" 같은 한글·특수문자 이름)를 원래 이름으로 되돌린다."""
+    if len(p) >= 2 and p[0] == p[-1] == '"':
+        return codecs.escape_decode(p[1:-1].encode())[0].decode("utf-8", "replace")
+    return p
+
+
 def strip_prefix(p):
-    p = p.strip().split("\t")[0]
+    p = unquote(p.strip().split("\t")[0])
     return p[2:] if p[:2] in ("a/", "b/") else p
 
 
@@ -90,8 +98,8 @@ def parse(diff_text):
             continue
         old_left = new_left = 0
         if raw.startswith("diff --git "):
-            m = re.match(r"diff --git a/(.*) b/(.*)", raw)
-            cur = new_file(m.group(2) if m else raw[11:].strip())
+            m = re.match(r'diff --git (?:a/(.*) b/(.*)|"a/.*" ("b/.*"))$', raw)
+            cur = new_file((m.group(2) or strip_prefix(m.group(3))) if m else raw[11:].strip())
             cur["raw"].append(raw)
             continue
         m = HUNK.match(raw)
@@ -126,7 +134,7 @@ def parse(diff_text):
             cur["status"] = "deleted"
         elif raw.startswith("rename to "):
             cur["status"] = "renamed"
-            cur["path"] = raw[10:].strip()
+            cur["path"] = unquote(raw[10:].strip())
     return [f for f in files if f["path"]]
 
 
@@ -243,7 +251,7 @@ def check_git_status(files, git_status):
         m = re.match(r"^\s*([MADRCU?!]{1,2})\s+(.+)$", line)
         if not m:
             continue
-        code, path = m.group(1), m.group(2).split(" -> ")[-1].strip().strip('"')
+        code, path = m.group(1), unquote(m.group(2).split(" -> ")[-1].strip())
         if path in in_diff or code == "!!":
             continue
         untracked = code == "??"

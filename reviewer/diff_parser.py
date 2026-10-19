@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import codecs
 from typing import List
 
 from unidiff import PatchSet
@@ -44,7 +45,15 @@ def parse_diff(diff_text: str) -> List[DiffFile]:
     return files
 
 
+def unquote_path(p: str) -> str:
+    """git 이 따옴표로 감싼 경로("\\355\\225\\234.txt" 같은 한글·특수문자 이름)를 원래 이름으로 되돌린다."""
+    if len(p) >= 2 and p[0] == p[-1] == '"':
+        return codecs.escape_decode(p[1:-1].encode())[0].decode("utf-8", "replace")
+    return p
+
+
 def _strip_prefix(p: str) -> str:
+    p = unquote_path(p)
     if p.startswith(("a/", "b/")):
         return p[2:]
     return p

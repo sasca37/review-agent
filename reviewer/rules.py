@@ -11,6 +11,7 @@ from typing import List, Optional
 import yaml
 from rapidfuzz.distance import OSA
 
+from .diff_parser import unquote_path
 from .vocab import KNOWN_WORDS
 from .models import DiffFile, Finding, MISSING_FILE, TYPO, FOUND, NEEDS_CHECK
 
@@ -124,7 +125,7 @@ def check_missing_files(
         m = re.match(r"^\s*([MADRCU?!]{1,2})\s+(.+)$", line)
         if not m:
             continue
-        code, path = m.group(1), m.group(2).split(" -> ")[-1].strip().strip('"')
+        code, path = m.group(1), unquote_path(m.group(2).split(" -> ")[-1].strip())
         line = line.strip()
         if path in in_diff or code == "!!":
             continue
