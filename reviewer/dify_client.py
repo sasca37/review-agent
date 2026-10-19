@@ -109,6 +109,8 @@ def run_review(base_url: str, key: str, diff_text: str, git_status: str = "", ta
         findings = json.loads(out["findings_json"])
     except (TypeError, ValueError):
         raise DifyError("findings_json 을 해석하지 못했습니다.")
+    if not isinstance(findings, list) or not all(isinstance(f, dict) for f in findings):
+        raise DifyError("findings_json 형식이 올바르지 않습니다 (항목 목록이어야 합니다). 워크플로 출력을 확인하세요.")
     return {"findings": findings, "notes": _notes_from_report(out.get("report", "")),
             "elapsed": data.get("elapsed_time")}
 

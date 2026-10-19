@@ -220,3 +220,16 @@ def test_merged_file_status_follows_last_commit():
                         F(path="n.py", status="added", added=1, removed=0),
                         F(path="n.py", status="modified", added=1, removed=1)])
     assert {r["path"]: r["status"] for r in rows} == {"t.py": "deleted", "r.py": "renamed", "n.py": "added"}
+
+
+def test_malformed_dify_findings_is_a_user_error(monkeypatch):
+    from reviewer import dify_client
+    from reviewer.dify_client import DifyError
+
+    class Resp:
+        status_code = 200
+        def json(self):
+            return {"data": {"status": "succeeded", "outputs": {"findings_json": '{"findings": []}'}}}
+    monkeypatch.setattr(dify_client, "_request", lambda *a, **k: Resp())
+    with pytest.raises(DifyError, match="형식이 올바르지 않습니다"):
+        dify_client.run_review("http://dify.local/v1", "k", "diff", "", "민원 서비스")
